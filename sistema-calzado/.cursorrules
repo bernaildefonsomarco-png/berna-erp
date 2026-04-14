@@ -1,0 +1,3 @@
+- Para las decisiones usa el archivo @supabase_schema.sql como fuente de verdad para la estructura de las tablas, ahi esta mi bd actual, pero segun vayamos modificando actualiza esta parte tambien para que mas adelante no haya confusiones, es decir, Si durante nuestra sesión creamos nuevas tablas o modificamos columnas, tu primera tarea es actualizar el archivo @supabase_schema.sql para reflejar esos cambios..
+- Puedes usar el cliente de Supabase definido en @supabaseClient.js (o el archivo donde lo tengas).
+- Recuerda que las tablas usan 'snake_case' (ej: id_venta) y en React usamos 'camelCase' para variables.

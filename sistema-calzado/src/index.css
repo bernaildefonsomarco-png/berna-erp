@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #fff;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Ocultar UI innecesaria del scanner */
+#qr-lector__status_span,
+#qr-lector__header_message,
+#qr-lector__dashboard_section_csr > span,
+#qr-lector__camera_permission_button ~ p,
+select#qr-lector__camera_selection + br,
+#qr-lector > p:first-of-type { display:none !important; }
+
+/* Input sin flechas */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+input[type=number] { -moz-appearance:textfield; }
+
+/* Tap highlight */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Select nativo */
+select { appearance: auto; }
