@@ -322,12 +322,15 @@ El sistema distingue tres tipos de acceso según el rol. La autenticación es po
 
 **Funcionalidades del perfil finanzas:**
 
-- Dashboard de deudas: cronograma, TCEA, mapa de deudas.
-- Plan de cuentas: gestión del catálogo contable (~50 cuentas).
-- Movimientos con clasificación contable obligatoria.
-- Costos fijos recurrentes (`CostosFijos.jsx`): alquiler, sueldos fijos, servicios.
+- **Estado de Resultados (P&L)** — módulo principal al entrar a `/finanzas`. P&L interactivo por período (semana, mes, custom) con panel de BI: al hacer clic en una sección del P&L (Ventas, Costos, Personal, etc.) el panel derecho muestra visualizaciones específicas. Soporta filtro por ubicación (`?ubicacion=X`).
+- **Dashboard** — Flujo de Caja (diario/mensual) y Patrimonio (activos vs pasivos). El P&L fue movido a Estado de Resultados.
+- **Hub Empresarial de Ubicaciones** (`/finanzas/ubicaciones`) — lista de Tiendas y Talleres con mini-KPIs del mes (ventas, costos, personal). Cada tarjeta abre el hub de esa ubicación con 5 tabs: Resumen/P&L, Ventas, Costos, Equipo, Movimientos.
+- **Trabajadores** — gestión de nómina: cargo, área, tipo de contrato (fijo/destajo/mixto), salario base, frecuencia de pago. Al crear un trabajador con salario, se crea automáticamente el `costo_fijo` de tipo salario vinculado a esa persona.
+- **Costos Fijos** — alquiler, servicios, suscripciones, seguros, impuestos. Los costos de personal NO se crean aquí — solo desde el módulo Trabajadores. La cuenta contable se auto-asigna por categoría (con fallback local si la tabla `mapeo_categoria_cuenta` está vacía).
+- **Deudas** — cronograma, TCEA, mapa de deudas, simulación de abonos extraordinarios.
+- **Plan de cuentas** — catálogo contable (~50 cuentas) que clasifica movimientos para el P&L.
+- **Movimientos** — con clasificación contable obligatoria y splits multi-cuenta.
 - Modal de destino de efectivo (`ModalDestinoEfectivo.jsx`): al cierre de tienda, el dinero debe clasificarse obligatoriamente (sin opción de saltear).
-- Estado de Resultados (P&L) — en construcción, Bloque 4.
 
 ---
 
@@ -498,17 +501,27 @@ El módulo de despacho de fábrica verifica el stock disponible antes de permiti
 
 ---
 
-### 5.4. Roadmap — Módulos en desarrollo
+### 5.4. Roadmap — Estado de módulos
 
-| MÓDULO | ESTADO / DESCRIPCIÓN |
+| MÓDULO | ESTADO |
 |---|---|
-| **Estado de Resultados (P&L)** | Bloque 4 — pendiente. P&L semanal con histórico. Construido sobre `plan_cuentas`. |
-| **Pagos de taller (pieza-rate)** | Tabla estructurada para pago a aparadores/armador por docenas producidas. |
-| **Cajas informales Papá/Mamá** | Registro diario de movimientos de las cajas informales de los padres. |
-| **Tabla de márgenes por marca** | Dinámica, conectada al catálogo. Reemplazará tabla hardcodeada en Excel. |
-| **Sistema QR (stickers)** | Planchas pre-cortadas con QRs vacíos (`qr_planchas`, `qr_etiquetas`). Asignación lazy a producción. Flag `modo_qr` para reversibilidad cuando haya impresora de etiquetas. |
-| **Flujo de devolución formal** | Inversión de venta + restauración de inventario + registro en P&L. |
-| **Conciliación de inventario** | Cotejo periódico entre inventario físico y registros en BD. |
+| **Estado de Resultados (P&L)** | ✅ COMPLETADO — P&L interactivo por período con drill-down de BI por sección. |
+| **Hub Empresarial de Ubicaciones** | ✅ COMPLETADO — Lista de Tiendas/Talleres + hub detail con KPIs y 5 tabs. |
+| **Módulo Trabajadores** | ✅ COMPLETADO — Nómina con vínculo automático a costos fijos. |
+| **Cuenta contable auto-asignada** | ✅ COMPLETADO — En CostosFijos, la cuenta se asigna automáticamente por categoría. |
+| **Modo Rápido** | ✅ COMPLETADO — Interfaz simplificada para padres/admins en `/rapido`. |
+| **Pagos de taller (pieza-rate)** | 🔲 PENDIENTE — Tabla estructurada para pago a aparadores/armador por docenas. |
+| **Cajas informales Papá/Mamá** | 🔲 PENDIENTE — Registro diario de movimientos informales de los padres. |
+| **Tabla de márgenes por marca** | 🔲 PENDIENTE — Conectada al catálogo. Reemplazará tabla hardcodeada en Excel. |
+| **Sistema QR (stickers)** | 🔲 PENDIENTE — `qr_planchas`, `qr_etiquetas`. Flag `modo_qr`. |
+| **Flujo de devolución formal** | 🔲 PENDIENTE — Inversión de venta + restauración de inventario + P&L. |
+| **Conciliación de inventario** | 🔲 PENDIENTE — Cotejo periódico entre inventario físico y registros en BD. |
+| **Migración 20260414_01** | ✅ APLICADA — rol en personas_tienda. |
+| **Migración 20260414_02** | ✅ APLICADA — v_costos_materiales_modelo + trigger saldo no negativo. |
+| **Migración 20260415_01** | ✅ APLICADA — trabajadores extendidos + mapeo_categoria_cuenta + v_nomina_resumen. |
+| **Migración 20260416_01** | 🔲 PENDIENTE — vendedoras rotativas + multi-área (`es_rotativo`, `areas_adicionales`). |
+| **Migración 20260416_02** | 🔲 PENDIENTE — `puestos_adicionales` para guardar el cargo específico por cada área secundaria. |
+| **Fase 1.5 — Cierres** | ✅ COMPLETADO — `cierres_periodo` table + `fn_validar_cierre` / `fn_cerrar_periodo` (lock NOWAIT) / `fn_reabrir_periodo` + Storage bucket privado `cierres-mensuales` + `v_cierres_integridad` hash-chain view. PDF ejecutivo 5 páginas con `@react-pdf/renderer` (lazy). Wizard 3 pasos + banner global + historial. |
 
 ---
 

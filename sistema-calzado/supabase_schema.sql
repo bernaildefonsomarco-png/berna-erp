@@ -410,6 +410,7 @@ CREATE TABLE public.personas_tienda (
   nombre text NOT NULL UNIQUE,
   activa boolean NOT NULL DEFAULT true,
   pin text,
+  rol text NOT NULL DEFAULT 'vendedora' CHECK (rol IN ('vendedora', 'admin', 'operador')),
   CONSTRAINT personas_tienda_pkey PRIMARY KEY (id_persona)
 );
 CREATE TABLE public.plan_cuentas (
@@ -576,3 +577,344 @@ CREATE TABLE public.vistas_guardadas (
 -- ALTER TABLE personas_tienda ADD pin_hash text, ADD id_ubicacion_preferida integer REFERENCES ubicaciones(id_ubicacion);
 -- ALTER TABLE movimiento_splits ADD id_ubicacion integer REFERENCES ubicaciones(id_ubicacion);
 -- INSERT permisos_persona recurso 'caja' para vendedoras; INSERT configuracion_sistema finanzas_reglas_ritual / finanzas_cuentas_liquidez_lunes
+
+-- ============================================================================
+-- MIGRACIONES APLICADAS EN PRODUCCIÓN (Abril 2026)
+-- ============================================================================
+
+-- ── 20260414_01_personas_rol.sql ─────────────────────────────────────────────
+-- ALTER TABLE personas_tienda
+--   ADD COLUMN IF NOT EXISTS rol text NOT NULL DEFAULT 'vendedora'
+--   CHECK (rol IN ('vendedora', 'admin', 'operador'));
+-- UPDATE personas_tienda SET rol = 'admin' WHERE LOWER(nombre) LIKE '%mamá%' OR LOWER(nombre) LIKE '%mama%';
+-- UPDATE personas_tienda SET rol = 'admin' WHERE LOWER(nombre) LIKE '%papá%' OR LOWER(nombre) LIKE '%papa%';
+
+-- ── 20260414_02_costos_materiales_y_saldo_no_negativo.sql ───────────────────
+-- CREATE OR REPLACE VIEW public.v_costos_materiales_modelo AS ...  (ver archivo de migración)
+-- CREATE OR REPLACE FUNCTION public.fn_validar_saldo_cuenta_no_negativo() RETURNS trigger ...
+-- CREATE TRIGGER trg_validar_saldo_cuenta_no_negativo
+--   BEFORE INSERT OR UPDATE OF saldo_actual, tipo_cuenta ON public.cuentas_financieras
+--   FOR EACH ROW EXECUTE FUNCTION public.fn_validar_saldo_cuenta_no_negativo();
+
+-- ── 20260415_01_trabajadores_y_mapeo_cuenta.sql ──────────────────────────────
+-- ALTER TABLE public.personas_tienda
+--   ADD COLUMN IF NOT EXISTS tipo_contrato text DEFAULT 'fijo' CHECK (tipo_contrato IN ('fijo','destajo','mixto')),
+--   ADD COLUMN IF NOT EXISTS area text DEFAULT 'tienda' CHECK (area IN ('taller','tienda','administracion')),
+--   ADD COLUMN IF NOT EXISTS cargo text,
+--   ADD COLUMN IF NOT EXISTS salario_base numeric,
+--   ADD COLUMN IF NOT EXISTS frecuencia_pago text DEFAULT 'mensual' CHECK (frecuencia_pago IN ('semanal','quincenal','mensual')),
+--   ADD COLUMN IF NOT EXISTS fecha_ingreso date,
+--   ADD COLUMN IF NOT EXISTS telefono text,
+--   ADD COLUMN IF NOT EXISTS notas_trabajador text;
+--
+-- CREATE TABLE IF NOT EXISTS public.mapeo_categoria_cuenta (
+--   id serial PRIMARY KEY,
+--   categoria_costo text NOT NULL,
+--   ubicacion_rol text,    -- 'Tienda', 'Fabrica', NULL = todos
+--   id_cuenta_contable integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+--   activo boolean NOT NULL DEFAULT true,
+--   created_at timestamp with time zone NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE OR REPLACE VIEW public.v_nomina_resumen AS ... (ver archivo de migración)
+-- GRANT SELECT ON public.v_nomina_resumen TO anon, authenticated;
+--
+-- ── 20260416_01_trabajadores_rotativo_multarea.sql (pendiente) ─────────────
+-- ALTER TABLE public.personas_tienda
+--   ADD COLUMN IF NOT EXISTS es_rotativo boolean NOT NULL DEFAULT false,
+--   ADD COLUMN IF NOT EXISTS areas_adicionales text[] DEFAULT '{}';
+--
+-- ── 20260416_02_trabajadores_puestos_adicionales.sql (pendiente) ───────────
+-- ALTER TABLE public.personas_tienda
+--   ADD COLUMN IF NOT EXISTS puestos_adicionales jsonb NOT NULL DEFAULT '[]'::jsonb;--   ADD COLUMN IF NOT EXISTS puestos_adicionales jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+-- ── FASE 1 MOTOR TAXONOMÍA ──────────────────────────────────────────────────
+-- Migrations: 20260418_01 through 20260418_14
+-- Applied: 2026-04-18
+-- ============================================================================
+
+-- ── 20260418_01_catalogos_auxiliares.sql ────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.catalogos_auxiliares (
+  id_catalogo serial PRIMARY KEY,
+  codigo text NOT NULL,
+  nombre text NOT NULL,
+  items jsonb NOT NULL DEFAULT '[]'::jsonb,
+  activo boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_catalogos_auxiliares_codigo_ci
+  ON public.catalogos_auxiliares (lower(codigo));
+
+CREATE TABLE IF NOT EXISTS public.roles_persona (
+  id_rol serial PRIMARY KEY,
+  codigo text NOT NULL,
+  nombre text NOT NULL,
+  ambito text,
+  activo boolean NOT NULL DEFAULT true,
+  orden integer NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_roles_persona_codigo_ci
+  ON public.roles_persona (lower(codigo));
+
+-- ── 20260418_02_tipos_movimiento_extensiones.sql ────────────────────────────
+
+ALTER TABLE public.tipos_movimiento_caja
+  ADD COLUMN IF NOT EXISTS direccion text
+    CHECK (direccion IN ('entrada','salida','transferencia')),
+  ADD COLUMN IF NOT EXISTS id_cuenta_contable_default integer
+    REFERENCES public.plan_cuentas(id_cuenta_contable),
+  ADD COLUMN IF NOT EXISTS id_cuenta_financiera_default integer
+    REFERENCES public.cuentas_financieras(id_cuenta_financiera),
+  ADD COLUMN IF NOT EXISTS id_cuenta_origen_default integer
+    REFERENCES public.cuentas_financieras(id_cuenta_financiera),
+  ADD COLUMN IF NOT EXISTS id_cuenta_destino_default integer
+    REFERENCES public.cuentas_financieras(id_cuenta_financiera),
+  ADD COLUMN IF NOT EXISTS scope text[] NOT NULL DEFAULT '{manual}',
+  ADD COLUMN IF NOT EXISTS comportamientos text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS campos_requeridos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS afecta_patrimonio boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS color_hex text,
+  ADD COLUMN IF NOT EXISTS solo_admin boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS naturaleza text,
+  ADD COLUMN IF NOT EXISTS moneda char(3) NOT NULL DEFAULT 'PEN';
+
+CREATE INDEX IF NOT EXISTS idx_tipos_movimiento_caja_scope
+  ON public.tipos_movimiento_caja USING gin (scope);
+
+-- ── 20260418_03_plantillas_recurrentes.sql ──────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.plantillas_recurrentes (
+  id_plantilla serial PRIMARY KEY,
+  codigo text NOT NULL,
+  nombre text NOT NULL,
+  id_tipo integer NOT NULL REFERENCES public.tipos_movimiento_caja(id_tipo),
+  id_ubicacion integer REFERENCES public.ubicaciones(id_ubicacion),
+  id_cuenta_contable integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+  id_cuenta_financiera_default integer REFERENCES public.cuentas_financieras(id_cuenta),
+  direccion text,
+  monto_estimado numeric(14,2),
+  frecuencia text NOT NULL CHECK (frecuencia IN ('mensual','quincenal','semanal','unico')),
+  dia_referencia integer,
+  comportamientos text[] NOT NULL DEFAULT '{}',
+  id_plantilla_objetivo integer REFERENCES public.plantillas_recurrentes(id_plantilla),
+  tarifa_por_unidad numeric(14,2),
+  estado text NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa','pausada','archivada')),
+  activo boolean NOT NULL DEFAULT true,
+  datos_extra jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plantillas_recurrentes_codigo_ci
+  ON public.plantillas_recurrentes (lower(codigo));
+CREATE INDEX IF NOT EXISTS idx_plantillas_recurrentes_ubicacion
+  ON public.plantillas_recurrentes(id_ubicacion) WHERE id_ubicacion IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_plantillas_recurrentes_tipo
+  ON public.plantillas_recurrentes(id_tipo);
+CREATE INDEX IF NOT EXISTS idx_plantillas_recurrentes_estado
+  ON public.plantillas_recurrentes(estado) WHERE activo = true;
+
+CREATE TABLE IF NOT EXISTS public.plantilla_ejecuciones (
+  id_ejecucion serial PRIMARY KEY,
+  id_plantilla integer NOT NULL
+    REFERENCES public.plantillas_recurrentes(id_plantilla) ON DELETE CASCADE,
+  periodo text NOT NULL,
+  fecha_generada timestamptz NOT NULL DEFAULT now(),
+  id_movimiento integer REFERENCES public.movimientos_caja(id_movimiento),
+  id_persona_actor integer REFERENCES public.personas_tienda(id_persona),
+  notas text,
+  UNIQUE (id_plantilla, periodo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plantilla_ejecuciones_plantilla_periodo
+  ON public.plantilla_ejecuciones(id_plantilla, periodo);
+
+-- ── 20260418_04_mapeo_tipo_cuenta.sql ──────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.mapeo_tipo_cuenta (
+  id_mapeo serial PRIMARY KEY,
+  id_tipo integer NOT NULL
+    REFERENCES public.tipos_movimiento_caja(id_tipo) ON DELETE CASCADE,
+  ubicacion_rol text NOT NULL,
+  id_cuenta_contable integer NOT NULL REFERENCES public.plan_cuentas(id_cuenta_contable),
+  activo boolean NOT NULL DEFAULT true,
+  UNIQUE (id_tipo, ubicacion_rol)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mapeo_tipo_cuenta_tipo
+  ON public.mapeo_tipo_cuenta(id_tipo);
+
+-- ── 20260418_05_movimientos_fks_extra.sql ──────────────────────────────────
+
+ALTER TABLE public.movimientos_caja
+  ADD COLUMN IF NOT EXISTS id_plantilla_origen integer
+    REFERENCES public.plantillas_recurrentes(id_plantilla),
+  ADD COLUMN IF NOT EXISTS id_venta integer
+    REFERENCES public.ventas(id_venta),
+  ADD COLUMN IF NOT EXISTS id_lote_produccion integer
+    REFERENCES public.lotes(id_lote),
+  ADD COLUMN IF NOT EXISTS snapshot_tipo_nombre text,
+  ADD COLUMN IF NOT EXISTS moneda char(3) NOT NULL DEFAULT 'PEN';
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_plantilla_origen
+  ON public.movimientos_caja(id_plantilla_origen) WHERE id_plantilla_origen IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_movimientos_venta
+  ON public.movimientos_caja(id_venta) WHERE id_venta IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_movimientos_lote
+  ON public.movimientos_caja(id_lote_produccion) WHERE id_lote_produccion IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_movimientos_ubicacion_fecha
+  ON public.movimientos_caja(id_ubicacion, fecha_movimiento DESC);
+
+ALTER TABLE public.cuentas_financieras
+  ADD COLUMN IF NOT EXISTS moneda char(3) NOT NULL DEFAULT 'PEN';
+
+-- ── 20260418_06_periodos_contables.sql ─────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.periodos_contables (
+  id_periodo serial PRIMARY KEY,
+  year integer NOT NULL,
+  month integer NOT NULL CHECK (month BETWEEN 1 AND 12),
+  estado text NOT NULL DEFAULT 'abierto' CHECK (estado IN ('abierto','cerrado')),
+  cerrado_por integer REFERENCES public.personas_tienda(id_persona),
+  cerrado_en timestamptz,
+  motivo_reapertura text,
+  UNIQUE (year, month)
+);
+
+-- ── 20260418_07_auditoria_eventos.sql ──────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.tipo_eventos (
+  id_evento serial PRIMARY KEY,
+  id_tipo integer NOT NULL
+    REFERENCES public.tipos_movimiento_caja(id_tipo) ON DELETE CASCADE,
+  tipo_evento text NOT NULL,
+  datos_antes jsonb,
+  datos_despues jsonb,
+  id_persona_actor integer REFERENCES public.personas_tienda(id_persona),
+  notas text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_tipo_eventos_tipo_fecha
+  ON public.tipo_eventos(id_tipo, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.plantilla_eventos (
+  id_evento serial PRIMARY KEY,
+  id_plantilla integer NOT NULL
+    REFERENCES public.plantillas_recurrentes(id_plantilla) ON DELETE CASCADE,
+  tipo_evento text NOT NULL,
+  datos_antes jsonb,
+  datos_despues jsonb,
+  id_persona_actor integer REFERENCES public.personas_tienda(id_persona),
+  notas text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_plantilla_eventos_plantilla_fecha
+  ON public.plantilla_eventos(id_plantilla, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.audit_log (
+  id_audit bigserial PRIMARY KEY,
+  tabla text NOT NULL,
+  id_registro text NOT NULL,
+  accion text NOT NULL CHECK (accion IN ('insert','update','delete')),
+  datos_antes jsonb,
+  datos_despues jsonb,
+  id_persona_actor integer REFERENCES public.personas_tienda(id_persona),
+  ip_origen text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_tabla_reg
+  ON public.audit_log(tabla, id_registro, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor
+  ON public.audit_log(id_persona_actor, created_at DESC);
+
+-- Functions added in Fase 1 (see individual migration files for full definitions):
+-- fn_bloquear_periodo_cerrado()              → 20260418_06
+-- fn_bloquear_modificacion_audit()           → 20260418_07
+-- fn_audit_generico()                        → 20260418_08
+-- fn_snapshot_tipo_nombre()                  → 20260418_08
+-- fn_validar_suma_splits()                   → 20260418_08
+-- fn_resolver_cuenta_contable(integer, integer, integer) → 20260418_09
+-- fn_registrar_hecho_economico(...)          → 20260418_10
+-- fn_aplicar_splits(integer, jsonb)          → 20260418_10
+-- fn_generar_movimiento_desde_plantilla(...) → 20260418_11
+
+-- ── 20260418_12_vistas_observabilidad.sql ──────────────────────────────────
+-- (also requires CREATE EXTENSION IF NOT EXISTS pg_trgm)
+
+CREATE OR REPLACE VIEW public.v_sistema_salud AS
+SELECT
+  (SELECT count(*) FROM public.movimientos_caja WHERE id_tipo IS NULL)
+    AS movimientos_sin_tipo,
+  (SELECT count(*) FROM public.movimientos_caja WHERE id_cuenta_contable IS NULL)
+    AS movimientos_sin_cuenta_contable,
+  (SELECT count(*) FROM public.plantillas_recurrentes p
+   WHERE p.activo AND p.estado = 'activa' AND p.frecuencia = 'mensual'
+     AND NOT EXISTS (
+       SELECT 1 FROM public.plantilla_ejecuciones e
+       WHERE e.id_plantilla = p.id_plantilla
+         AND e.periodo = to_char(now(), 'YYYY-MM')
+     ))
+    AS plantillas_mensuales_pendientes,
+  (SELECT count(*) FROM (
+     SELECT s.id_movimiento
+     FROM public.movimiento_splits s
+     GROUP BY s.id_movimiento
+     HAVING SUM(s.monto) <> (
+       SELECT m.monto FROM public.movimientos_caja m WHERE m.id_movimiento = s.id_movimiento
+     )
+   ) q)
+    AS splits_desbalanceados;
+
+-- ── 20260418_14_deprecate_legacy_checks.sql ────────────────────────────────
+-- Renames legacy inline CHECK constraints to _deprecated_* prefix for safe
+-- rollback. See migration file for full DO $$ block with IF EXISTS guards.
+-- Constraints renamed:
+--   personas_tienda_rol_check        → _deprecated_personas_tienda_rol_check
+--   costos_fijos_categoria_check     → _deprecated_costos_fijos_categoria_check
+--
+-- ═══════════════════════════════════════════════════════════════════════════
+-- FASE 1.5 — Cierre de Períodos Contables
+-- Migraciones 20260419_01 al 20260419_06
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── 20260419_01_cierres_periodo_tabla.sql ────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.cierres_periodo (
+  id_cierre         serial PRIMARY KEY,
+  id_periodo        integer NOT NULL REFERENCES public.periodos_contables(id_periodo) ON DELETE RESTRICT,
+  version           integer NOT NULL DEFAULT 1,
+  id_persona_cerro  integer NOT NULL REFERENCES public.personas_tienda(id_persona),
+  cerrado_en        timestamptz NOT NULL DEFAULT now(),
+  motivo_reapertura text,
+  hash_sha256       text NOT NULL,
+  url_storage       text NOT NULL,
+  snapshot_kpis     jsonb NOT NULL DEFAULT '{}',
+  checklist_salud   jsonb NOT NULL DEFAULT '{}',
+  bytes_pdf         integer,
+  id_organizacion   uuid,
+  UNIQUE (id_periodo, version)
+);
+
+-- ── 20260419_02_fn_validar_cierre.sql ────────────────────────────────────
+-- fn_validar_cierre(year, month) → jsonb con checklist de salud del período
+-- Campos: movimientos_sin_tipo, movimientos_sin_cuenta_contable,
+--         splits_desbalanceados, plantillas_mensuales_pendientes,
+--         cuentas_con_saldo_negativo, bloqueante, warnings[]
+
+-- ── 20260419_03_fn_cerrar_periodo.sql ────────────────────────────────────
+-- fn_cerrar_periodo(...) → { ok, id_cierre, version }
+-- Lock pesimista NOWAIT + verificación de nivel 'admin' en recurso 'cierres'
+
+-- ── 20260419_04_fn_reabrir_periodo.sql ───────────────────────────────────
+-- fn_reabrir_periodo(id_periodo, motivo, id_persona) → void
+-- Motivo obligatorio + nivel 'admin' en recurso 'cierres'
+
+-- ── 20260419_05_storage_bucket_cierres.sql ───────────────────────────────
+-- Bucket privado 'cierres-mensuales' + RLS policies (SELECT/INSERT/DELETE)
+-- max 20MB, solo application/pdf
+
+-- ── 20260419_06_v_cierres_integridad.sql ─────────────────────────────────
+-- Vista v_cierres_integridad: detecta cadena de hashes rota entre versiones
+-- + seed de permisos: finanzas:admin → cierres:admin, finanzas:ver/registrar/editar → cierres:ver
