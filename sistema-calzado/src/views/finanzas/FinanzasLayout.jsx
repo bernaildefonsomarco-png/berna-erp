@@ -18,6 +18,7 @@ const Ubicaciones   = lazy(() => import('./views/Ubicaciones'));
 const HubUbicacion  = lazy(() => import('./views/HubUbicacion'));
 const CierresPeriodo = lazy(() => import('./views/CierresPeriodo'));
 const CierreWizard   = lazy(() => import('./views/cierres/CierreWizard'));
+const CatalogoAdmin  = lazy(() => import('./views/admin/CatalogoAdmin'));
 
 /* ──────────────────────────────────────────────────────────────────────────
    FinanzasLayout
@@ -58,6 +59,7 @@ const NAV_ITEMS = [
   { path: '/finanzas/plan-cuentas',      label: 'Plan de cuentas',   icon: ICONS.trending,  recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/ubicaciones',        label: 'Tiendas y Talleres',icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z', recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/equipo',            label: 'Equipo',            icon: ICONS.settings,  recurso: RECURSOS.FINANZAS, adminOnly: true },
+  { path: '/finanzas/catalogo',          label: 'Catálogo',          icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', recurso: RECURSOS.FINANZAS, adminOnly: true },
 ];
 
 function CierreWizardRoute({ usuario }) {
@@ -264,6 +266,7 @@ export default function FinanzasLayout({ usuario, logout }) {
               <Route path="equipo"            element={<Equipo         usuario={usuario} />} />
               <Route path="cierres"                element={<CierresPeriodo usuario={usuario} />} />
               <Route path="cierres/:year/:month"   element={<CierreWizardRoute usuario={usuario} />} />
+              <Route path="catalogo"              element={<CatalogoAdmin />} />
               {/* Legacy redirects */}
               <Route path="personas"          element={<Navigate to="/finanzas/equipo" replace />} />
               <Route path="ajustes"           element={<Navigate to="/finanzas/equipo" replace />} />
