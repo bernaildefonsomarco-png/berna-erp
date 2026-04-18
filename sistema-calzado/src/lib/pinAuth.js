@@ -1,10 +1,25 @@
 import bcrypt from 'bcryptjs';
+import { supabase } from '../api/supabase';
 
 const ROUNDS = 10;
 
 export async function hashPin(plain) {
   if (plain == null || String(plain).length === 0) return null;
   return bcrypt.hash(String(plain), ROUNDS);
+}
+
+/**
+ * Fetches the persona row by id and verifies the entered PIN.
+ * Returns true if the PIN matches, false otherwise.
+ */
+export async function verificarPin(idPersona, enteredPin) {
+  const { data, error } = await supabase
+    .from('personas_tienda')
+    .select('pin, pin_hash')
+    .eq('id_persona', idPersona)
+    .single();
+  if (error || !data) return false;
+  return verifyPersonaPin(data, enteredPin);
 }
 
 export async function verifyPersonaPin(personaRow, enteredPin) {
