@@ -52,5 +52,18 @@ export const RECURSOS = {
   MOVIMIENTOS:    'movimientos',
   TRANSFERENCIAS: 'transferencias',
   CONFIGURACION:  'configuracion',
-  RAPIDO:         'rapido',
+  COMANDO:        'comando',
+  CIERRES:        'cierres',
 };
+
+export function puedeVerCierres(usuario) {
+  return tienePermiso(usuario, RECURSOS.CIERRES, 'ver');
+}
+
+export function puedeCerrar(usuario) {
+  return tienePermiso(usuario, RECURSOS.CIERRES, 'admin');
+}
+
+export function puedeReabrir(usuario) {
+  return tienePermiso(usuario, RECURSOS.CIERRES, 'admin');
+}
