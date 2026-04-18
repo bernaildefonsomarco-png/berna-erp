@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-empty */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './finanzas/lib/materialCostos';
 import { supabase } from '../api/supabase';
 import jsQR from 'jsqr';
 
@@ -321,9 +322,11 @@ const getPrecioCatalogo = (serie, producto, colorObj) => {
   if (base && Number(base) > 0) return Number(base);
   return Number(producto?.precio_venta_sugerido) || 0;
 };
-const getCostoCatalogo = (serie, colorObj) => {
-  const s = serie === 'Grande' ? 'costo_grande' : serie === 'Mediana' ? 'costo_mediana' : 'costo_chica';
-  return Number(colorObj?.[s]) || 0;
+const getCostoCatalogo = async ({ idProducto, idColor, serie }) => {
+  if (!idProducto || !idColor || !serie) return 0;
+  const rows = await listarCostosMaterialesModelo({ idProducto, idColor, soloActivos: true });
+  const index = indexarCostosMateriales(rows);
+  return obtenerCostoMaterial(index, { idProducto, idColor, serie });
 };
 
 // ─── ModalCatalogo — selector rápido desde BD ──────────────────────────────────
@@ -397,10 +400,12 @@ function ModalCatalogo({ onAgregar, onClose }) {
     else onClose();
   };
 
-  const agregarAlCarrito = (talla, precio) => {
+  const agregarAlCarrito = async (talla, precio) => {
     const t = Number(talla);
     const serie = getSerie(t, serieSel);
-    const costo = colorSel && serie ? getCostoCatalogo(serie, colorSel) : 0;
+    const costo = colorSel && serie && modeloSel?.id_producto
+      ? await getCostoCatalogo({ idProducto: modeloSel.id_producto, idColor: colorSel.id_color, serie })
+      : 0;
     onAgregar({
       id: Date.now(), sku: null,
       marca: marcaFinal, modelo: modeloFinal,
@@ -939,11 +944,11 @@ export default function VentasPOS({ vendedora, tiendasActivas, logout, onVerInve
       let costoEst = 0;
       if (idProducto && inv.color) {
         const { data: colDB } = await supabase.from('colores_modelos')
-          .select('id_color, costo_grande, costo_mediana, costo_chica')
+          .select('id_color')
           .eq('id_producto', idProducto).ilike('color', inv.color).eq('estado','Activo').limit(1);
         if (colDB?.[0]) {
           idColor = colDB[0].id_color;
-          costoEst = getCostoCatalogo(serie, colDB[0]);
+          costoEst = await getCostoCatalogo({ idProducto, idColor, serie });
         }
       }
       return {

@@ -11,6 +11,7 @@ import {
   calcularProximoVencimiento, tceaEfectiva, costoFinancieroDiario,
 } from '../lib/calculos';
 import { puedeRegistrar, puedeEditar, RECURSOS } from '../lib/permisos';
+import { generarCodigoDeuda } from '../lib/codegen';
 import {
   Card, MetricCard, Badge, Button, Modal, Field, Input, Select,
   MoneyInput, EmptyState, LoadingState, PageHeader, Icon, ICONS, Spinner,
@@ -299,7 +300,7 @@ export default function Deudas({ usuario }) {
       />
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-[#991b1b]" style={{ fontWeight: 400 }}>
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/50 text-sm text-destructive" style={{ fontWeight: 400 }}>
           {error}
         </div>
       )}
@@ -328,9 +329,9 @@ export default function Deudas({ usuario }) {
       </div>
 
       {kpis.masCara && Number(kpis.masCara.tea_pct) > 0 && (
-        <div className="mb-6 p-3 rounded-lg bg-[#fef9c3] border border-[#fde68a] flex items-start gap-3">
-          <Icon d={ICONS.alert} size={16} className="text-[#854d0e] mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-[#854d0e]" style={{ fontWeight: 400 }}>
+        <div className="mb-6 p-3 rounded-lg bg-amber-50/40 border border-amber-200 flex items-start gap-3">
+          <Icon d={ICONS.alert} size={16} className="text-amber-700 mt-0.5 flex-shrink-0" />
+          <div className="text-xs text-amber-700" style={{ fontWeight: 400 }}>
             <span style={{ fontWeight: 500 }}>Atención:</span>{' '}
             <span style={{ fontWeight: 500 }}>{kpis.masCara.nombre}</span> es la deuda más cara con TEA de{' '}
             <span className="fin-num" style={{ fontWeight: 500 }}>{formatPercent(kpis.masCara.tea_pct, { decimals: 2 })}</span>.
@@ -349,8 +350,8 @@ export default function Deudas({ usuario }) {
                 onClick={() => setEstadoFiltro(e.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
                   estadoFiltro === e.value
-                    ? 'bg-[#1c1917] text-white'
-                    : 'text-[#57534e] hover:bg-[#f5f5f4]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
                 }`}
                 style={{ fontWeight: 500 }}
               >
@@ -360,13 +361,13 @@ export default function Deudas({ usuario }) {
           </div>
           <div className="flex-1 min-w-[180px]">
             <div className="relative">
-              <Icon d={ICONS.search} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" />
+              <Icon d={ICONS.search} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar por nombre, acreedor o código"
                 style={{ fontWeight: 400 }}
-                className="w-full h-9 pl-9 pr-3 rounded-lg border border-[#e7e5e4] bg-white text-sm placeholder:text-[#a8a29e] focus:outline-none focus:border-[#1c1917] focus:ring-1 focus:ring-[#1c1917]"
+                className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:border-ring focus:ring-1 focus-visible:ring-ring/50"
               />
             </div>
           </div>
@@ -416,6 +417,7 @@ export default function Deudas({ usuario }) {
         <FormDeuda
           cuentas={cuentas}
           personas={personas}
+          codigosExistentes={deudas.map(d => d.codigo)}
           onSubmit={handleCrear}
           onCancel={() => setModalCrear(false)}
         />
@@ -477,10 +479,10 @@ export default function Deudas({ usuario }) {
             </>
           }
         >
-          <p className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>
+          <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
             ¿Seguro que quieres archivar <span style={{ fontWeight: 500, color: '#1c1917' }}>{confirmArchivar.nombre}</span>?
           </p>
-          <p className="text-xs text-[#a8a29e] mt-2" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground mt-2" style={{ fontWeight: 400 }}>
             La deuda pasa a estado "cancelada". Los pagos históricos se conservan.
           </p>
         </Modal>
@@ -519,23 +521,23 @@ function DeudaRow({ deuda, onClick, onPagar }) {
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#fafaf9] transition-colors cursor-pointer group"
+      className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer group"
       onClick={onClick}
     >
       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sem.border }} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm text-[#1c1917] truncate" style={{ fontWeight: 500 }}>{deuda.nombre}</p>
+          <p className="text-sm text-foreground truncate" style={{ fontWeight: 500 }}>{deuda.nombre}</p>
           <Badge color={COLOR_ESTADO[deuda.estado] || 'gray'} size="sm">{deuda.estado}</Badge>
           {tea > 0 && (
-            <span className="text-[11px] text-[#57534e] fin-num" style={{ fontWeight: 500 }}>
+            <span className="text-[11px] text-muted-foreground fin-num" style={{ fontWeight: 500 }}>
               TEA {formatPercent(tea, { decimals: 1 })}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>{deuda.acreedor}</span>
+          <span className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>{deuda.acreedor}</span>
           {venc && (
             <span className="text-[11px] fin-num" style={{ fontWeight: 500, color: sem.text }}>
               · {venc.dias === 0 ? 'vence hoy'
@@ -545,15 +547,15 @@ function DeudaRow({ deuda, onClick, onPagar }) {
             </span>
           )}
           {Number(deuda.cuota_monto) > 0 && (
-            <span className="text-[11px] text-[#a8a29e] fin-num" style={{ fontWeight: 400 }}>
+            <span className="text-[11px] text-muted-foreground fin-num" style={{ fontWeight: 400 }}>
               · cuota {formatMoney(deuda.cuota_monto)}
             </span>
           )}
         </div>
         {progreso && Number(deuda.monto_original) > 0 && (
-          <div className="mt-2 h-1 bg-[#f5f5f4] rounded-full overflow-hidden max-w-[280px]">
+          <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden max-w-[280px]">
             <div
-              className="h-full bg-[#1c1917] transition-all"
+              className="h-full bg-primary transition-all"
               style={{ width: `${Math.min(100, progreso.pct_pagado * 100)}%` }}
             />
           </div>
@@ -561,10 +563,10 @@ function DeudaRow({ deuda, onClick, onPagar }) {
       </div>
 
       <div className="text-right flex-shrink-0">
-        <p className="text-sm text-[#1c1917] fin-num" style={{ fontWeight: 500 }}>
+        <p className="text-sm text-foreground fin-num" style={{ fontWeight: 500 }}>
           {formatMoney(deuda.saldo_actual)}
         </p>
-        <p className="text-[11px] text-[#a8a29e] fin-num mt-0.5" style={{ fontWeight: 400 }}>
+        <p className="text-[11px] text-muted-foreground fin-num mt-0.5" style={{ fontWeight: 400 }}>
           de {formatMoney(deuda.monto_original)}
         </p>
       </div>
@@ -572,7 +574,7 @@ function DeudaRow({ deuda, onClick, onPagar }) {
       {onPagar && (
         <button
           onClick={e => { e.stopPropagation(); onPagar(); }}
-          className="px-3 py-1.5 rounded-lg text-xs bg-[#1c1917] text-white hover:bg-[#292524] opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+          className="px-3 py-1.5 rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/90 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
           style={{ fontWeight: 500 }}
         >
           Pagar
@@ -587,7 +589,7 @@ function DeudaRow({ deuda, onClick, onPagar }) {
    FormDeuda - creación / edición
    ══════════════════════════════════════════════════════════════════════════ */
 
-function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) {
+function FormDeuda({ cuentas, personas, codigosExistentes = [], valoresIniciales, onSubmit, onCancel }) {
   const [form, setForm] = useState({
     codigo: '',
     nombre: '',
@@ -640,10 +642,13 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
     setF('cuota_monto', +cuota.toFixed(2));
   }, [form.monto_original, form.tea_pct, form.plazo_meses, form.frecuencia_cuota, autoCuota]);
 
+  const codigoAutoGenerado = useMemo(
+    () => valoresIniciales?.codigo || generarCodigoDeuda(codigosExistentes),
+    [codigosExistentes, valoresIniciales]
+  );
+
   const validar = () => {
     const e = {};
-    if (!form.codigo?.trim()) e.codigo = 'Requerido';
-    else if (!/^[A-Z0-9_]+$/.test(form.codigo)) e.codigo = 'Solo mayúsculas, números y guion bajo';
     if (!form.nombre?.trim()) e.nombre = 'Requerido';
     if (!form.acreedor?.trim()) e.acreedor = 'Requerido';
     if (!(Number(form.monto_original) > 0)) e.monto_original = 'Debe ser mayor a 0';
@@ -660,7 +665,7 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
     setGuardando(true);
     try {
       const payload = {
-        codigo: form.codigo.trim().toUpperCase(),
+        codigo: codigoAutoGenerado,
         nombre: form.nombre.trim(),
         acreedor: form.acreedor.trim(),
         tipo_acreedor: form.tipo_acreedor,
@@ -698,14 +703,10 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Código" required error={errs.codigo} hint="Ej: MI_BANCO, CAJA_AREQUIPA">
-          <Input
-            value={form.codigo}
-            onChange={v => setF('codigo', v.toUpperCase())}
-            placeholder="MI_BANCO"
-            error={errs.codigo}
-          />
-        </Field>
+        <div className="flex flex-col justify-end">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Código (auto)</p>
+          <p className="text-sm font-mono text-foreground bg-muted/30 border border-border rounded-lg px-3 py-2.5">{codigoAutoGenerado}</p>
+        </div>
 
         <Field label="Tipo de acreedor" required>
           <Select
@@ -780,7 +781,7 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
               <button
                 type="button"
                 onClick={() => setAutoCuota(true)}
-                className="text-[11px] text-[#57534e] hover:text-[#1c1917] px-2 py-1 rounded hover:bg-[#f5f5f4]"
+                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted"
                 style={{ fontWeight: 500 }}
                 title="Recalcular automáticamente"
               >
@@ -845,29 +846,29 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
       </Field>
 
       {/* ── Sección colapsable: costos adicionales ── */}
-      <div className="border border-[#e7e5e4] rounded-lg p-3 mb-4">
+      <div className="border border-border rounded-lg p-3 mb-4">
         <button
           type="button"
           onClick={() => setMostrarCargos(!mostrarCargos)}
           className="w-full flex items-center justify-between text-left"
         >
           <div>
-            <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>
+            <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>
               Costos adicionales y TCEA
             </p>
-            <p className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>
+            <p className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>
               Comisiones, seguros, portes, ITF. Todos opcionales.
             </p>
           </div>
           <Icon
             d={mostrarCargos ? 'M6 9l6 6 6-6' : 'M9 18l6-6-6-6'}
             size={16}
-            className="text-[#a8a29e]"
+            className="text-muted-foreground"
           />
         </button>
 
         {mostrarCargos && (
-          <div className="mt-4 pt-4 border-t border-[#f5f5f4]">
+          <div className="mt-4 pt-4 border-t border-border/50">
             <Field label="TCEA del contrato (decimal)"
                    hint="Si tu contrato dice TCEA explícita, ponla aquí. Si no, se estima desde TEA + cargos.">
               <Input
@@ -926,11 +927,11 @@ function FormDeuda({ cuentas, personas, valoresIniciales, onSubmit, onCancel }) 
           rows={2}
           placeholder="Garantías, condiciones especiales, contacto..."
           style={{ fontWeight: 400 }}
-          className="w-full px-3 py-2 rounded-lg border border-[#e7e5e4] bg-white text-sm placeholder:text-[#a8a29e] focus:outline-none focus:border-[#1c1917] focus:ring-1 focus:ring-[#1c1917]"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:border-ring focus:ring-1 focus-visible:ring-ring/50"
         />
       </Field>
 
-      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit} disabled={guardando}>
           {guardando ? <><Spinner size={14}/> Guardando...</> : 'Guardar deuda'}
@@ -955,7 +956,7 @@ function DetalleDeuda({ deuda, cuentas, personas, puedeEditar, puedePagar, onAct
   return (
     <div>
       {/* ── Header ── */}
-      <div className="flex items-start gap-4 pb-4 border-b border-[#f5f5f4]">
+      <div className="flex items-start gap-4 pb-4 border-b border-border/50">
         <div
           className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ backgroundColor: sem.bg }}
@@ -964,19 +965,19 @@ function DetalleDeuda({ deuda, cuentas, personas, puedeEditar, puedePagar, onAct
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-[17px] text-[#1c1917]" style={{ fontWeight: 600 }}>{deuda.nombre}</h2>
+            <h2 className="text-[17px] text-foreground" style={{ fontWeight: 600 }}>{deuda.nombre}</h2>
             <Badge color={COLOR_ESTADO[deuda.estado] || 'gray'} size="sm">{deuda.estado}</Badge>
           </div>
-          <p className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>{deuda.acreedor}</p>
-          <p className="text-xs text-[#a8a29e] mt-1" style={{ fontWeight: 400 }}>
+          <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>{deuda.acreedor}</p>
+          <p className="text-xs text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
             Código: <span className="font-mono">{deuda.codigo}</span>
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[24px] text-[#1c1917] fin-num leading-none" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
+          <p className="text-[24px] text-foreground fin-num leading-none" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
             {formatMoney(deuda.saldo_actual)}
           </p>
-          <p className="text-xs text-[#a8a29e] mt-1.5" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground mt-1.5" style={{ fontWeight: 400 }}>
             de {formatMoney(deuda.monto_original)} originales
           </p>
         </div>
@@ -1005,15 +1006,15 @@ function DetalleDeuda({ deuda, cuentas, personas, puedeEditar, puedePagar, onAct
 
       {progreso && Number(deuda.monto_original) > 0 && (
         <div className="mt-3">
-          <div className="flex items-center justify-between text-xs text-[#a8a29e] mb-1.5" style={{ fontWeight: 400 }}>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5" style={{ fontWeight: 400 }}>
             <span>Progreso</span>
             <span className="fin-num" style={{ fontWeight: 500, color: '#1c1917' }}>
               {(progreso.pct_pagado * 100).toFixed(1)}%
             </span>
           </div>
-          <div className="h-1.5 bg-[#f5f5f4] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#1c1917] transition-all"
+              className="h-full bg-primary transition-all"
               style={{ width: `${Math.min(100, progreso.pct_pagado * 100)}%` }}
             />
           </div>
@@ -1030,7 +1031,7 @@ function DetalleDeuda({ deuda, cuentas, personas, puedeEditar, puedePagar, onAct
       )}
 
       {/* ── Tabs ── */}
-      <div className="flex items-center gap-1 border-b border-[#f5f5f4] mt-5 overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-border/50 mt-5 overflow-x-auto">
         {[
           { k: 'info',       label: 'Información' },
           { k: 'cronograma', label: 'Cronograma' },
@@ -1042,8 +1043,8 @@ function DetalleDeuda({ deuda, cuentas, personas, puedeEditar, puedePagar, onAct
             onClick={() => setTab(t.k)}
             className={`px-3 py-2 text-sm transition-colors border-b-2 -mb-px whitespace-nowrap ${
               tab === t.k
-                ? 'text-[#1c1917] border-[#1c1917]'
-                : 'text-[#a8a29e] border-transparent hover:text-[#57534e]'
+                ? 'text-foreground border-ring'
+                : 'text-muted-foreground border-transparent hover:text-muted-foreground'
             }`}
             style={{ fontWeight: tab === t.k ? 500 : 400 }}
           >
@@ -1077,8 +1078,8 @@ function MiniMetric({ label, value, accent }) {
               : accent === 'warning' ? '#854d0e'
               : '#1c1917';
   return (
-    <div className="bg-[#fafaf9] rounded-lg p-2.5">
-      <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>{label}</p>
+    <div className="bg-muted/30 rounded-lg p-2.5">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>{label}</p>
       <p className="text-sm fin-num" style={{ fontWeight: 500, color }}>{value}</p>
     </div>
   );
@@ -1132,8 +1133,8 @@ function TabInfoDeuda({ deuda }) {
       <DetalleField label="N° de contrato" value={deuda.numero_contrato || '—'} />
 
       {tieneCargos && (
-        <div className="pt-3 mt-3 border-t border-[#f5f5f4]">
-          <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>Cargos adicionales</p>
+        <div className="pt-3 mt-3 border-t border-border/50">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>Cargos adicionales</p>
           {Number(deuda.comision_mensual) > 0 && <DetalleField label="Comisión mensual" value={formatMoney(deuda.comision_mensual)} />}
           {Number(deuda.seguro_mensual) > 0 && <DetalleField label="Seguro mensual" value={formatMoney(deuda.seguro_mensual)} />}
           {Number(deuda.portes_mensual) > 0 && <DetalleField label="Portes mensuales" value={formatMoney(deuda.portes_mensual)} />}
@@ -1144,8 +1145,8 @@ function TabInfoDeuda({ deuda }) {
 
       {deuda.notas && (
         <div className="pt-3">
-          <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-1.5" style={{ fontWeight: 500 }}>Notas</p>
-          <p className="text-sm text-[#1c1917] bg-[#fafaf9] rounded-lg p-3" style={{ fontWeight: 400 }}>{deuda.notas}</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5" style={{ fontWeight: 500 }}>Notas</p>
+          <p className="text-sm text-foreground bg-muted/30 rounded-lg p-3" style={{ fontWeight: 400 }}>{deuda.notas}</p>
         </div>
       )}
     </div>
@@ -1155,8 +1156,8 @@ function TabInfoDeuda({ deuda }) {
 function DetalleField({ label, value }) {
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-[#a8a29e] uppercase tracking-wider" style={{ fontWeight: 500 }}>{label}</span>
-      <span className="text-sm text-[#1c1917] fin-num" style={{ fontWeight: 500 }}>{value}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>{label}</span>
+      <span className="text-sm text-foreground fin-num" style={{ fontWeight: 500 }}>{value}</span>
     </div>
   );
 }
@@ -1201,11 +1202,11 @@ function TabCronograma({ deuda }) {
   return (
     <div>
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1 mb-4 bg-[#fafaf9] rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 mb-4 bg-muted/30 rounded-lg p-1 w-fit">
         <button
           onClick={() => setSubTab('proyectado')}
           className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
-            subTab === 'proyectado' ? 'bg-white text-[#1c1917] shadow-sm' : 'text-[#57534e] hover:text-[#1c1917]'
+            subTab === 'proyectado' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
           style={{ fontWeight: 500 }}
         >
@@ -1214,7 +1215,7 @@ function TabCronograma({ deuda }) {
         <button
           onClick={() => setSubTab('teorico')}
           className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
-            subTab === 'teorico' ? 'bg-white text-[#1c1917] shadow-sm' : 'text-[#57534e] hover:text-[#1c1917]'
+            subTab === 'teorico' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
           style={{ fontWeight: 500 }}
         >
@@ -1222,7 +1223,7 @@ function TabCronograma({ deuda }) {
         </button>
       </div>
 
-      <p className="text-[11px] text-[#a8a29e] mb-3" style={{ fontWeight: 400 }}>
+      <p className="text-[11px] text-muted-foreground mb-3" style={{ fontWeight: 400 }}>
         {subTab === 'proyectado'
           ? 'Cronograma calculado desde el saldo actual real. Se recalcula automáticamente con cada pago, refinanciación o ajuste.'
           : 'Cronograma original calculado al momento de crear la deuda, sobre el monto inicial. No refleja pagos posteriores.'}
@@ -1239,24 +1240,24 @@ function TabCronograma({ deuda }) {
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-[#fafaf9] rounded-lg p-2.5">
-              <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total capital</p>
-              <p className="text-sm fin-num text-[#1c1917]" style={{ fontWeight: 500 }}>{formatMoney(totalCapital)}</p>
+            <div className="bg-muted/30 rounded-lg p-2.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total capital</p>
+              <p className="text-sm fin-num text-foreground" style={{ fontWeight: 500 }}>{formatMoney(totalCapital)}</p>
             </div>
-            <div className="bg-[#fafaf9] rounded-lg p-2.5">
-              <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total interés</p>
-              <p className="text-sm fin-num text-[#991b1b]" style={{ fontWeight: 500 }}>{formatMoney(totalInteres)}</p>
+            <div className="bg-muted/30 rounded-lg p-2.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total interés</p>
+              <p className="text-sm fin-num text-destructive" style={{ fontWeight: 500 }}>{formatMoney(totalInteres)}</p>
             </div>
-            <div className="bg-[#fafaf9] rounded-lg p-2.5">
-              <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total a pagar</p>
-              <p className="text-sm fin-num text-[#1c1917]" style={{ fontWeight: 500 }}>{formatMoney(totalCuotas)}</p>
+            <div className="bg-muted/30 rounded-lg p-2.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total a pagar</p>
+              <p className="text-sm fin-num text-foreground" style={{ fontWeight: 500 }}>{formatMoney(totalCuotas)}</p>
             </div>
           </div>
 
-          <div className="border border-[#e7e5e4] rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden">
             <div className="max-h-[400px] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-[#fafaf9] text-[11px] text-[#a8a29e] uppercase tracking-wider sticky top-0">
+                <thead className="bg-muted/30 text-[11px] text-muted-foreground uppercase tracking-wider sticky top-0">
                   <tr>
                     <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>#</th>
                     <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>Fecha</th>
@@ -1268,13 +1269,13 @@ function TabCronograma({ deuda }) {
                 </thead>
                 <tbody>
                   {cronograma.map(c => (
-                    <tr key={c.cuota_num} className="border-t border-[#f5f5f4]">
-                      <td className="px-3 py-2 text-[#a8a29e] fin-num" style={{ fontWeight: 400 }}>{c.cuota_num}</td>
-                      <td className="px-3 py-2 text-[#57534e] fin-num" style={{ fontWeight: 400 }}>{formatDate(c.fecha)}</td>
-                      <td className="px-3 py-2 text-right text-[#1c1917] fin-num" style={{ fontWeight: 500 }}>{formatMoney(c.cuota_total, { decimals: true })}</td>
-                      <td className="px-3 py-2 text-right text-[#166534] fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.capital, { decimals: true })}</td>
-                      <td className="px-3 py-2 text-right text-[#991b1b] fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.interes, { decimals: true })}</td>
-                      <td className="px-3 py-2 text-right text-[#57534e] fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.saldo_pendiente, { decimals: true })}</td>
+                    <tr key={c.cuota_num} className="border-t border-border/50">
+                      <td className="px-3 py-2 text-muted-foreground fin-num" style={{ fontWeight: 400 }}>{c.cuota_num}</td>
+                      <td className="px-3 py-2 text-muted-foreground fin-num" style={{ fontWeight: 400 }}>{formatDate(c.fecha)}</td>
+                      <td className="px-3 py-2 text-right text-foreground fin-num" style={{ fontWeight: 500 }}>{formatMoney(c.cuota_total, { decimals: true })}</td>
+                      <td className="px-3 py-2 text-right text-green-700 fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.capital, { decimals: true })}</td>
+                      <td className="px-3 py-2 text-right text-destructive fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.interes, { decimals: true })}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground fin-num" style={{ fontWeight: 400 }}>{formatMoney(c.saldo_pendiente, { decimals: true })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1315,9 +1316,9 @@ function TabPagos({ deuda }) {
 
   if (error) {
     return (
-      <div className="p-4 rounded-lg bg-[#fef2f2] border border-[#fca5a5]">
-        <p className="text-sm text-[#991b1b]" style={{ fontWeight: 500 }}>No se pudieron cargar los pagos</p>
-        <p className="text-xs text-[#991b1b] mt-1 font-mono" style={{ fontWeight: 400 }}>{error}</p>
+      <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50">
+        <p className="text-sm text-destructive" style={{ fontWeight: 500 }}>No se pudieron cargar los pagos</p>
+        <p className="text-xs text-destructive mt-1 font-mono" style={{ fontWeight: 400 }}>{error}</p>
       </div>
     );
   }
@@ -1333,9 +1334,9 @@ function TabPagos({ deuda }) {
   }
 
   return (
-    <div className="border border-[#e7e5e4] rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="bg-[#fafaf9] text-[11px] text-[#a8a29e] uppercase tracking-wider">
+        <thead className="bg-muted/30 text-[11px] text-muted-foreground uppercase tracking-wider">
           <tr>
             <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>Fecha</th>
             <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>Cuenta / Concepto</th>
@@ -1349,20 +1350,20 @@ function TabPagos({ deuda }) {
             const cap = Number(p.datos_extra?.capital ?? p.monto) || 0;
             const inte = Number(p.datos_extra?.interes ?? 0) || 0;
             return (
-              <tr key={p.id_movimiento} className="border-t border-[#f5f5f4]">
-                <td className="px-3 py-2 text-[#57534e] fin-num align-top" style={{ fontWeight: 400 }}>{formatDate(p.fecha_movimiento)}</td>
+              <tr key={p.id_movimiento} className="border-t border-border/50">
+                <td className="px-3 py-2 text-muted-foreground fin-num align-top" style={{ fontWeight: 400 }}>{formatDate(p.fecha_movimiento)}</td>
                 <td className="px-3 py-2 align-top">
-                  <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>
+                  <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>
                     {p.tiene_splits ? 'Pago split (varias cuentas)' : (p.cuenta?.nombre || '—')}
                   </p>
-                  <p className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>{p.concepto}</p>
+                  <p className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>{p.concepto}</p>
                   {p.persona && (
-                    <p className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>por {p.persona.nombre}</p>
+                    <p className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>por {p.persona.nombre}</p>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right text-[#166534] fin-num align-top" style={{ fontWeight: 500 }}>{formatMoney(cap)}</td>
-                <td className="px-3 py-2 text-right text-[#991b1b] fin-num align-top" style={{ fontWeight: 500 }}>{formatMoney(inte)}</td>
-                <td className="px-3 py-2 text-right text-[#1c1917] fin-num align-top" style={{ fontWeight: 600 }}>{formatMoney(p.monto)}</td>
+                <td className="px-3 py-2 text-right text-green-700 fin-num align-top" style={{ fontWeight: 500 }}>{formatMoney(cap)}</td>
+                <td className="px-3 py-2 text-right text-destructive fin-num align-top" style={{ fontWeight: 500 }}>{formatMoney(inte)}</td>
+                <td className="px-3 py-2 text-right text-foreground fin-num align-top" style={{ fontWeight: 600 }}>{formatMoney(p.monto)}</td>
               </tr>
             );
           })}
@@ -1383,7 +1384,7 @@ function TabConfigDeuda({ deuda, cuentas, personas, puedeEditar, onActualizar, o
 
   if (!puedeEditar) {
     return (
-      <p className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>
+      <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
         No tienes permisos para modificar esta deuda.
       </p>
     );
@@ -1392,7 +1393,7 @@ function TabConfigDeuda({ deuda, cuentas, personas, puedeEditar, onActualizar, o
   if (editando) {
     return (
       <div>
-        <p className="text-sm text-[#1c1917] mb-3" style={{ fontWeight: 500 }}>Editar deuda</p>
+        <p className="text-sm text-foreground mb-3" style={{ fontWeight: 500 }}>Editar deuda</p>
         <FormDeuda
           cuentas={cuentas}
           personas={personas}
@@ -1422,7 +1423,7 @@ function TabConfigDeuda({ deuda, cuentas, personas, puedeEditar, onActualizar, o
 
   return (
     <div>
-      <p className="text-sm text-[#57534e] mb-4" style={{ fontWeight: 400 }}>
+      <p className="text-sm text-muted-foreground mb-4" style={{ fontWeight: 400 }}>
         Acciones administrativas. Cambios aquí afectan el cálculo de intereses y el cronograma.
       </p>
 
@@ -1501,8 +1502,8 @@ function FormRefinanciar({ deuda, onSubmit, onCancel }) {
 
   return (
     <div>
-      <p className="text-sm text-[#1c1917] mb-1" style={{ fontWeight: 500 }}>Refinanciar deuda</p>
-      <p className="text-xs text-[#a8a29e] mb-4" style={{ fontWeight: 400 }}>
+      <p className="text-sm text-foreground mb-1" style={{ fontWeight: 500 }}>Refinanciar deuda</p>
+      <p className="text-xs text-muted-foreground mb-4" style={{ fontWeight: 400 }}>
         Esto modifica las condiciones de la deuda y registra un evento de auditoría. No borra los pagos históricos.
       </p>
 
@@ -1537,11 +1538,11 @@ function FormRefinanciar({ deuda, onSubmit, onCancel }) {
           rows={3}
           placeholder="Ej: Renegociación con el banco, baja de TEA del 32% al 24%, ampliación del plazo a 24 meses."
           style={{ fontWeight: 400 }}
-          className="w-full px-3 py-2 rounded-lg border border-[#e7e5e4] bg-white text-sm placeholder:text-[#a8a29e] focus:outline-none focus:border-[#1c1917] focus:ring-1 focus:ring-[#1c1917]"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:border-ring focus:ring-1 focus-visible:ring-ring/50"
         />
       </Field>
 
-      <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit} disabled={guardando}>
           {guardando ? <><Spinner size={14}/> Guardando...</> : 'Confirmar refinanciación'}
@@ -1567,21 +1568,21 @@ function HistorialEventos({ idDeuda }) {
   if (eventos.length === 0) return null;
 
   return (
-    <div className="mt-6 pt-4 border-t border-[#f5f5f4]">
-      <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
+    <div className="mt-6 pt-4 border-t border-border/50">
+      <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
         Historial de eventos
       </p>
       <div className="space-y-2">
         {eventos.map(e => (
-          <div key={e.id_evento} className="bg-[#fafaf9] rounded-lg p-3">
+          <div key={e.id_evento} className="bg-muted/30 rounded-lg p-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>{e.tipo_evento.replace(/_/g, ' ')}</p>
+                <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>{e.tipo_evento.replace(/_/g, ' ')}</p>
                 {e.descripcion && (
-                  <p className="text-xs text-[#57534e] mt-0.5" style={{ fontWeight: 400 }}>{e.descripcion}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5" style={{ fontWeight: 400 }}>{e.descripcion}</p>
                 )}
               </div>
-              <p className="text-[11px] text-[#a8a29e] fin-num" style={{ fontWeight: 400 }}>{formatDate(e.fecha_evento)}</p>
+              <p className="text-[11px] text-muted-foreground fin-num" style={{ fontWeight: 400 }}>{formatDate(e.fecha_evento)}</p>
             </div>
           </div>
         ))}
@@ -1674,6 +1675,24 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
         }
       }
     }
+    // Bloquear pago desde cuenta con saldo insuficiente
+    if (!modoSplit && idCuenta && !e.cuenta) {
+      const cta = cuentas.find(c => c.id_cuenta === Number(idCuenta));
+      if (cta && Number(cta.saldo_actual) < (Number(monto) || 0)) {
+        e.cuenta = `Saldo insuficiente en ${cta.nombre}. Transfiere fondos primero.`;
+      }
+    }
+    if (modoSplit && !e.splits) {
+      const splitInsuf = splits.find(s => {
+        const cta = cuentas.find(c => c.id_cuenta === Number(s.id_cuenta));
+        return cta && Number(cta.saldo_actual) < (Number(s.monto) || 0);
+      });
+      if (splitInsuf) {
+        const cta = cuentas.find(c => c.id_cuenta === Number(splitInsuf.id_cuenta));
+        e.splits = `Saldo insuficiente en ${cta?.nombre}. Transfiere fondos primero.`;
+      }
+    }
+
     setErrs(e);
     return Object.keys(e).length === 0;
   };
@@ -1740,14 +1759,14 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
   return (
     <div>
       {/* ── Resumen de la deuda ── */}
-      <div className="bg-[#fafaf9] rounded-lg p-3 mb-4">
+      <div className="bg-muted/30 rounded-lg p-3 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[#a8a29e] uppercase tracking-wider" style={{ fontWeight: 500 }}>Saldo pendiente</span>
-          <span className="text-base text-[#1c1917] fin-num" style={{ fontWeight: 600 }}>{formatMoney(deuda.saldo_actual)}</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>Saldo pendiente</span>
+          <span className="text-base text-foreground fin-num" style={{ fontWeight: 600 }}>{formatMoney(deuda.saldo_actual)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[#a8a29e] uppercase tracking-wider" style={{ fontWeight: 500 }}>Cuota sugerida</span>
-          <span className="text-sm text-[#57534e] fin-num" style={{ fontWeight: 500 }}>{formatMoney(cuotaSugerida)}</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>Cuota sugerida</span>
+          <span className="text-sm text-muted-foreground fin-num" style={{ fontWeight: 500 }}>{formatMoney(cuotaSugerida)}</span>
         </div>
       </div>
 
@@ -1757,16 +1776,16 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
       </Field>
 
       {/* ── Capital / Interés ── */}
-      <div className="border border-[#e7e5e4] rounded-lg p-3 mb-4">
+      <div className="border border-border rounded-lg p-3 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-[#57534e] uppercase tracking-wider" style={{ fontWeight: 500 }}>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>
             Desglose capital / interés
           </p>
           {!autoSplit && (
             <button
               type="button"
               onClick={() => setAutoSplit(true)}
-              className="text-[11px] text-[#57534e] hover:text-[#1c1917] px-2 py-1 rounded hover:bg-[#f5f5f4]"
+              className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted"
               style={{ fontWeight: 500 }}
             >
               Recalcular auto
@@ -1782,15 +1801,15 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
           </Field>
         </div>
         {errs.split && (
-          <p className="text-[11px] text-[#991b1b] mt-1" style={{ fontWeight: 500 }}>{errs.split}</p>
+          <p className="text-[11px] text-destructive mt-1" style={{ fontWeight: 500 }}>{errs.split}</p>
         )}
-        <p className="text-[11px] text-[#a8a29e] mt-2" style={{ fontWeight: 400 }}>
+        <p className="text-[11px] text-muted-foreground mt-2" style={{ fontWeight: 400 }}>
           El capital reduce el saldo de la deuda. El interés es costo financiero del periodo.
         </p>
       </div>
 
       {/* ── Toggle modo split ── */}
-      <div className="border border-[#e7e5e4] rounded-lg p-3 mb-4">
+      <div className="border border-border rounded-lg p-3 mb-4">
         <label className="flex items-start gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -1799,8 +1818,8 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
             className="mt-0.5"
           />
           <div>
-            <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>Pagar desde varias cuentas (split)</p>
-            <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+            <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>Pagar desde varias cuentas (split)</p>
+            <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
               Útil cuando el dinero se junta de la caja de papá, mamá y/o ahorro BCP.
             </p>
           </div>
@@ -1819,15 +1838,12 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
         </Field>
       )}
 
-      {/* Alerta de saldo negativo en cuenta única */}
+      {/* Error de saldo insuficiente en cuenta única */}
       {!modoSplit && irAQuedarNegativa && (
-        <div className="-mt-2 mb-4 p-2.5 rounded-lg bg-[#fef3c7] border border-[#fcd34d] flex items-start gap-2">
-          <Icon d={ICONS.alert} size={14} className="text-[#854d0e] mt-0.5 flex-shrink-0" />
-          <div className="text-[11px] text-[#854d0e]" style={{ fontWeight: 400 }}>
-            <span style={{ fontWeight: 500 }}>Atención:</span> {cuentaSeleccionada?.nombre} quedará en{' '}
-            <span className="fin-num" style={{ fontWeight: 500 }}>{formatMoney(saldoTrasPago)}</span>{' '}
-            tras el pago. El sistema lo permite (saldo negativo es válido), pero recuerda reponerlo
-            con una transferencia o ingreso.
+        <div className="-mt-2 mb-4 p-2.5 rounded-lg bg-destructive/10 border border-destructive/50 flex items-start gap-2">
+          <Icon d={ICONS.alert} size={14} className="text-destructive mt-0.5 flex-shrink-0" />
+          <div className="text-[11px] text-destructive" style={{ fontWeight: 400 }}>
+            <span style={{ fontWeight: 500 }}>Saldo insuficiente:</span> {cuentaSeleccionada?.nombre}. Transfiere fondos primero.
           </div>
         </div>
       )}
@@ -1836,8 +1852,8 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
       {modoSplit && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-[#57534e] uppercase tracking-wider" style={{ fontWeight: 500 }}>Cuentas origen</p>
-            <p className="text-[11px] text-[#a8a29e] fin-num" style={{ fontWeight: 500 }}>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>Cuentas origen</p>
+            <p className="text-[11px] text-muted-foreground fin-num" style={{ fontWeight: 500 }}>
               Total: {formatMoney(totalSplits)} / {formatMoney(monto)}
             </p>
           </div>
@@ -1862,7 +1878,7 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
                   <button
                     type="button"
                     onClick={() => handleRemoveSplit(idx)}
-                    className="w-9 h-10 flex items-center justify-center rounded-lg text-[#a8a29e] hover:text-[#991b1b] hover:bg-[#fef2f2] flex-shrink-0"
+                    className="w-9 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
                     title="Quitar"
                   >
                     <Icon d={ICONS.x} size={14} />
@@ -1875,34 +1891,26 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
           <button
             type="button"
             onClick={handleAddSplit}
-            className="mt-2 text-xs text-[#57534e] hover:text-[#1c1917] flex items-center gap-1"
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
             style={{ fontWeight: 500 }}
           >
             <Icon d={ICONS.plus} size={12} /> Agregar otra cuenta
           </button>
 
           {errs.splits && (
-            <p className="text-[11px] text-[#991b1b] mt-2" style={{ fontWeight: 500 }}>{errs.splits}</p>
+            <p className="text-[11px] text-destructive mt-2" style={{ fontWeight: 500 }}>{errs.splits}</p>
           )}
 
-          {/* Alerta de splits que dejan cuentas en negativo */}
+          {/* Error de splits con saldo insuficiente */}
           {splitsNegativos.length > 0 && (
-            <div className="mt-2 p-2.5 rounded-lg bg-[#fef3c7] border border-[#fcd34d] flex items-start gap-2">
-              <Icon d={ICONS.alert} size={14} className="text-[#854d0e] mt-0.5 flex-shrink-0" />
-              <div className="text-[11px] text-[#854d0e] flex-1" style={{ fontWeight: 400 }}>
-                <span style={{ fontWeight: 500 }}>Atención:</span>{' '}
+            <div className="mt-2 p-2.5 rounded-lg bg-destructive/10 border border-destructive/50 flex items-start gap-2">
+              <Icon d={ICONS.alert} size={14} className="text-destructive mt-0.5 flex-shrink-0" />
+              <div className="text-[11px] text-destructive flex-1" style={{ fontWeight: 400 }}>
+                <span style={{ fontWeight: 500 }}>Saldo insuficiente:</span>{' '}
                 {splitsNegativos.length === 1
-                  ? `${splitsNegativos[0].cuenta.nombre} quedará en `
-                  : `${splitsNegativos.length} cuentas quedarán en negativo: `}
-                {splitsNegativos.map((s, i) => (
-                  <span key={i}>
-                    {splitsNegativos.length > 1 && (i > 0 ? ', ' : '')}
-                    <span className="fin-num" style={{ fontWeight: 500 }}>
-                      {splitsNegativos.length > 1 ? `${s.cuenta.nombre} ${formatMoney(s.tras)}` : formatMoney(s.tras)}
-                    </span>
-                  </span>
-                ))}
-                . El sistema lo permite, pero recuerda reponer.
+                  ? splitsNegativos[0].cuenta.nombre
+                  : splitsNegativos.map(s => s.cuenta.nombre).join(', ')}.
+                {' '}Transfiere fondos primero.
               </div>
             </div>
           )}
@@ -1919,7 +1927,7 @@ function FormPagarDeuda({ deuda, cuentas, usuario, onSubmit, onCancel }) {
       </Field>
 
       {/* ── Footer ── */}
-      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit} disabled={guardando}>
           {guardando ? <><Spinner size={14}/> Registrando...</> : `Registrar pago de ${formatMoney(monto)}`}

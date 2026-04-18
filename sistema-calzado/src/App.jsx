@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from './api/supabase';
 import { verifyPersonaPin } from './lib/pinAuth';
 import VentasPOS from './views/VentasPOS';
@@ -62,8 +63,8 @@ const IC = ({ d, s = 18 }) => (
   </svg>
 );
 
-function FabricaLayout({ usuario, logout }) {
-  const [v, setV]     = useState('produccion');
+function FabricaLayout({ usuario, logout, deepLink }) {
+  const [v, setV]     = useState(() => deepLink?.vista || 'produccion');
   const [col, setCol] = useState(false);
 
   const nav = [
@@ -73,6 +74,10 @@ function FabricaLayout({ usuario, logout }) {
   ];
 
   const sideW = col ? 64 : 220;
+
+  useEffect(() => {
+    if (deepLink?.vista) setV(deepLink.vista);
+  }, [deepLink?.vista]);
 
   return (
     <div className="berna-f w-full max-w-full overflow-x-hidden flex" style={{ background:'#faf9f7' }}>
@@ -141,7 +146,7 @@ function FabricaLayout({ usuario, logout }) {
           <div className="berna-main-content">
             <EB>
               {v === 'produccion'  && <ProduccionLotes  usuario={usuario} logout={() => {}} />}
-              {v === 'catalogo'    && <CatalogoCostos   usuario={usuario} />}
+              {v === 'catalogo'    && <CatalogoCostos   usuario={usuario} deepLink={deepLink} />}
               {v === 'planificador'&& <PlanificadorPedido usuario={usuario} />}
             </EB>
           </div>
@@ -155,6 +160,7 @@ function FabricaLayout({ usuario, logout }) {
 const SK = 'berna_session';
 
 export default function App() {
+  const location = useLocation();
   const [usuario,        setUsuario]        = useState(null);
   const [iniciando,      setIniciando]      = useState(true);
   const [cargandoApp,    setCargandoApp]    = useState(false);
@@ -178,6 +184,14 @@ export default function App() {
 
   // ── Tienda activa para Caja (la que VentasPOS reporta) ─────────────────
   const [cajaUbicacionId, setCajaUbicacionId] = useState(null);
+
+  const params = new URLSearchParams(location.search);
+  const deepLink = {
+    vista: params.get('vista') || '',
+    modelo: params.get('modelo') ? Number(params.get('modelo')) : null,
+    color: params.get('color') ? Number(params.get('color')) : null,
+    serie: params.get('serie') || '',
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -261,10 +275,11 @@ export default function App() {
     try {
       const { data: personas } = await supabase
         .from('personas_tienda')
-        .select('id_persona,nombre,pin,pin_hash')
+        .select('id_persona,nombre,pin,pin_hash,rol,area')
         .eq('activa', true)
         .order('nombre');
-      p = personas || [];
+      // POS solo muestra vendedoras/es de tienda.
+      p = (personas || []).filter(row => row.area === 'tienda' || row.rol === 'vendedora');
       const ids = p.map(x => x.id_persona).filter(Boolean);
       if (ids.length) {
         const { data: cajaRows } = await supabase
@@ -279,7 +294,12 @@ export default function App() {
         p = p.map(row => ({ ...row, puede_ver_caja: false }));
       }
     } catch {
-      const { data } = await supabase.from('personas_tienda').select('nombre').eq('activa', true).order('nombre');
+      const { data } = await supabase
+        .from('personas_tienda')
+        .select('nombre,rol')
+        .eq('activa', true)
+        .eq('rol', 'vendedora')
+        .order('nombre');
       p = data?.map(x => ({ id_persona:null, nombre:x.nombre, puede_ver_caja: false }));
     }
     return p?.length ? p : [{ id_persona:null, nombre:'Naty', puede_ver_caja: false }, { id_persona:null, nombre:'Yova', puede_ver_caja: false }, { id_persona:null, nombre:'Alina', puede_ver_caja: false }, { id_persona:null, nombre:'Rotativo', puede_ver_caja: false }];
@@ -646,7 +666,7 @@ export default function App() {
   );
 
   // ── Fábrica ──────────────────────────────────────────────────────────────────
-  if (usuario.rol === 'Fabrica') return <FabricaLayout usuario={usuario} logout={logout} />;
+  if (usuario.rol === 'Fabrica') return <FabricaLayout usuario={usuario} logout={logout} deepLink={deepLink} />;
 
   // ── Tienda ───────────────────────────────────────────────────────────────────
   const tiendasActivas = usuario.multi_tiendas && usuario.multi_tiendas.length > 1

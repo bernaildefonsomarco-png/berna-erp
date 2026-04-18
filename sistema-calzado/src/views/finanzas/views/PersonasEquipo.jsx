@@ -57,7 +57,7 @@ export default function PersonasEquipo({ usuario }) {
 
   const permisoFin = (id) => (permisosPorId[id] || []).find(x => x.recurso === 'finanzas');
   const permisoCaja = (id) => (permisosPorId[id] || []).find(x => x.recurso === 'caja');
-  const permisoRapido = (id) => (permisosPorId[id] || []).find(x => x.recurso === 'rapido');
+  const permisoRapido = (id) => (permisosPorId[id] || []).find(x => x.recurso === 'comando');
 
   const handleToggleCaja = async (idPersona, activar) => {
     try {
@@ -89,8 +89,8 @@ export default function PersonasEquipo({ usuario }) {
 
   const handleToggleRapido = async (idPersona, activar) => {
     try {
-      if (activar) await asignarPermiso(idPersona, 'rapido', 'registrar');
-      else await revocarPermiso(idPersona, 'rapido');
+      if (activar) await asignarPermiso(idPersona, 'comando', 'registrar');
+      else await revocarPermiso(idPersona, 'comando');
       await cargar();
     } catch (e) {
       alert(e.message || 'Error al actualizar acceso al Modo Rápido');
@@ -120,30 +120,30 @@ export default function PersonasEquipo({ usuario }) {
         title="Personas del negocio"
         description="Equipo, tienda preferida, acceso a Caja del POS y nivel en Finanzas. Los detalles avanzados siguen en Configuración."
         actions={
-          <Link to="/finanzas/configuracion" className="text-xs text-[#57534e] hover:text-[#1c1917]" style={{ fontWeight: 500 }}>
+          <Link to="/finanzas/configuracion" className="text-xs text-muted-foreground hover:text-foreground" style={{ fontWeight: 500 }}>
             Ir a Configuración →
           </Link>
         }
       />
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-[#991b1b]">{error}</div>
+        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-destructive">{error}</div>
       )}
 
       <Card padding="md" className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-[15px] text-[#1c1917]" style={{ fontWeight: 600 }}>Listado</h2>
-            <p className="text-xs text-[#a8a29e] mt-0.5">
+            <h2 className="text-[15px] text-foreground" style={{ fontWeight: 600 }}>Listado</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Desactiva a quien ya no trabaja aquí; el historial de movimientos se conserva.
             </p>
           </div>
           <Button variant="primary" icon={ICONS.plus} onClick={() => setModalCrear(true)}>Nueva persona</Button>
         </div>
 
-        <div className="border border-[#e7e5e4] rounded-lg overflow-x-auto">
+        <div className="border border-border rounded-lg overflow-x-auto">
           <table className="w-full text-sm min-w-[720px]">
-            <thead className="bg-[#fafaf9] text-[11px] text-[#a8a29e] uppercase tracking-wider">
+            <thead className="bg-muted/30 text-[11px] text-muted-foreground uppercase tracking-wider">
               <tr>
                 <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>Persona</th>
                 <th className="px-3 py-2 text-left" style={{ fontWeight: 500 }}>Estado</th>
@@ -161,17 +161,17 @@ export default function PersonasEquipo({ usuario }) {
                 const pr = permisoRapido(p.id_persona);
                 const uPref = ubicaciones.find(u => u.id_ubicacion === p.id_ubicacion_preferida);
                 return (
-                  <tr key={p.id_persona} className="border-t border-[#f5f5f4]">
+                  <tr key={p.id_persona} className="border-t border-border/50">
                     <td className="px-3 py-2.5">
                       <span style={{ fontWeight: 500 }}>{p.nombre}</span>
-                      <div className="text-[10px] text-[#a8a29e]">
+                      <div className="text-[10px] text-muted-foreground">
                         PIN: {(p.pin || p.pin_hash) ? '••••' : '—'}
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
                       {p.activa ? <Badge color="teal" size="sm">Activa</Badge> : <Badge color="gray" size="sm">Inactiva</Badge>}
                     </td>
-                    <td className="px-3 py-2.5 text-[#57534e]">{uPref?.nombre || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{uPref?.nombre || '—'}</td>
                     <td className="px-3 py-2.5">
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
@@ -180,7 +180,7 @@ export default function PersonasEquipo({ usuario }) {
                           disabled={!p.activa}
                           onChange={e => handleToggleCaja(p.id_persona, e.target.checked)}
                         />
-                        <span className="text-xs text-[#57534e]">Ver Caja</span>
+                        <span className="text-xs text-muted-foreground">Ver Caja</span>
                       </label>
                     </td>
                     <td className="px-3 py-2.5">
@@ -191,7 +191,7 @@ export default function PersonasEquipo({ usuario }) {
                           options={NIVELES_FIN}
                         />
                       ) : (
-                        <span className="text-xs text-[#a8a29e]">Sin acceso</span>
+                        <span className="text-xs text-muted-foreground">Sin acceso</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
@@ -202,7 +202,7 @@ export default function PersonasEquipo({ usuario }) {
                           disabled={!p.activa}
                           onChange={e => handleToggleRapido(p.id_persona, e.target.checked)}
                         />
-                        <span className="text-xs text-[#57534e]">Activar</span>
+                        <span className="text-xs text-muted-foreground">Activar</span>
                       </label>
                     </td>
                     <td className="px-3 py-2.5 text-right space-x-1">
@@ -297,7 +297,7 @@ function FormPersonaEquipo({ ubicaciones, onSubmit, onCancel }) {
           options={[{ value: '', label: '— Sin asignar —' }, ...ubicaciones.map(u => ({ value: u.id_ubicacion, label: u.nombre }))]}
         />
       </Field>
-      <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={submit} disabled={guardando}>
           {guardando ? <><Spinner size={14} /> Guardando…</> : 'Crear'}
@@ -357,8 +357,8 @@ function FormEditarPersonaEquipo({ persona, ubicaciones, onSubmit, onDarFinanzas
       </Field>
 
       {!tieneFinanzas && (
-        <div className="border border-[#e7e5e4] rounded-lg p-3">
-          <p className="text-xs text-[#57534e] mb-2">Dar acceso a Finanzas</p>
+        <div className="border border-border rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-2">Dar acceso a Finanzas</p>
           <div className="flex gap-2 flex-wrap">
             <Select value={nivelFin} onChange={setNivelFin} options={NIVELES_FIN} />
             <Button size="sm" variant="primary" onClick={() => onDarFinanzas(nivelFin)}>Dar acceso</Button>
@@ -366,7 +366,7 @@ function FormEditarPersonaEquipo({ persona, ubicaciones, onSubmit, onDarFinanzas
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex justify-end gap-2 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cerrar</Button>
         <Button variant="primary" onClick={submit} disabled={guardando}>
           {guardando ? <Spinner size={14} /> : 'Guardar'}

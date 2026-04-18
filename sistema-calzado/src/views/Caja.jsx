@@ -2,47 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../api/supabase';
 import { jsPDF } from 'jspdf';
 import ModalDestinoEfectivo from './finanzas/components/ModalDestinoEfectivo';
+import QuickEntry from '../components/QuickEntry/QuickEntry';
 // ─── Número de WhatsApp del dueño (con código de país, sin + ni espacios) ────
 const WA_NUMERO = '51954839139';
 
 const fmt    = n => `S/${Number(n||0).toFixed(2)}`;
 const fmtDif = d => `${Number(d) >= 0 ? '+' : ''}${fmt(d)}`;
 
-const METODO_LABEL = { efectivo: '💵 Efectivo', yape: '💜 Yape', plin: '🩵 Plin', tarjeta: '💳 Tarjeta' };
 const METODO_SHORT = { efectivo: 'Efec', yape: 'Yape', plin: 'Plin', tarjeta: 'Tarj' };
-const METODOS_MOV  = ['efectivo', 'yape', 'plin'];
-
-// ─── Mapeo de secciones por categoría ──────────────────────────────────────────
-const SECCIONES_CATEGORIA = [
-  { key: 'gasto_operativo', titulo: 'Gastos operativos' },
-  { key: 'gasto_personal',  titulo: 'Adelantos personales' },
-  { key: 'devolucion',      titulo: 'Devoluciones' },
-  { key: 'obligacion',      titulo: 'Obligaciones' },
-  { key: 'transferencia',   titulo: 'Transferencias y retiros' },
-  { key: 'retiro_dueno',    titulo: 'Retiros del dueño' },
-  { key: 'ingreso_extra',   titulo: 'Ingreso extra' },
-];
-
-const PLACEHOLDER_NOTA = {
-  luz_tienda:       'Ej: Tienda 1039, recibo octubre',
-  transfer_fabrica: 'Ej: Compra cuero + plantas',
-  retiro_dueno:     'Ej: Gastos del hogar',
-  otros_operativo:  'Describe el gasto...',
-  insumos_tienda:   'Ej: Bolsas, limpieza, etc.',
-  pago_personal:    'Ej: Pago a vendedora extra',
-  dev_adelanto:     'Ej: Devolución Naty S/30',
-  ingreso_extra:    'Ej: Fondo adicional, reembolso',
-};
-
-const CATEGORIAS_SELECT = [
-  { value: 'gasto_operativo', label: 'Gasto operativo' },
-  { value: 'gasto_personal',  label: 'Adelanto personal' },
-  { value: 'devolucion',      label: 'Devolución' },
-  { value: 'obligacion',      label: 'Obligación' },
-  { value: 'transferencia',   label: 'Transferencia' },
-  { value: 'retiro_dueno',    label: 'Retiro del dueño' },
-  { value: 'ingreso_extra',   label: 'Ingreso extra' },
-];
 
 export default function Caja({ vendedora, logout, onVolver }) {
   const AUTORIZADAS_CAJA = ['naty', 'yova', 'alina'];
@@ -66,20 +33,9 @@ export default function Caja({ vendedora, logout, onVolver }) {
   const [cerrando, setCerrando]       = useState(false);
   const [resumenEntrega, setResumenEntrega] = useState(null);
   const [modalDestinoVisible, setModalDestinoVisible] = useState(false);
-  // Movimiento — nuevo flujo en 2 pasos
-  const [modalMov, setModalMov]         = useState(false);
-  const [guardandoMov, setGuardandoMov] = useState(false);
+  // QuickEntry
+  const [quickEntryAbierto, setQuickEntryAbierto] = useState(false);
   const [tiposMovimiento, setTiposMovimiento] = useState([]);
-  const [pasoMov, setPasoMov] = useState(1); // 1 = seleccionar tipo, 2 = monto y datos
-  const [tipoSeleccionado, setTipoSeleccionado] = useState(null);
-  const [movData, setMovData] = useState({ origen_pago: 'caja', metodo: 'efectivo', monto: '', nota: '' });
-
-  // Sub-modal crear tipo
-  const [modalNuevoTipo, setModalNuevoTipo] = useState(false);
-  const [nuevoTipo, setNuevoTipo] = useState({
-    nombre: '', emoji: '', categoria: 'gasto_operativo', tipo_flujo: 'egreso', requiere_nota: false
-  });
-  const [guardandoTipo, setGuardandoTipo] = useState(false);
 
   // Stats
   const [ventasHoy, setVentasHoy]     = useState([]);
@@ -117,8 +73,9 @@ export default function Caja({ vendedora, logout, onVolver }) {
         .order('fecha_cierre', { ascending: false }).limit(30);
       setHistorial(hist || []);
 
-      // Cargar obligaciones
+      // Cargar obligaciones y tipos de movimiento
       await cargarObligaciones();
+      await cargarTiposMovimiento();
     } catch(e) { console.error(e); }
     finally { setCargando(false); }
   };
@@ -399,138 +356,6 @@ export default function Caja({ vendedora, logout, onVolver }) {
     finally { setCerrando(false); }
   };
 
-  // ─── MOVIMIENTO (NUEVO FLUJO) ──────────────────────────────────────────────
-  const abrirModalMov = async () => {
-    await cargarTiposMovimiento();
-    setPasoMov(1);
-    setTipoSeleccionado(null);
-    setMovData({ origen_pago: 'caja', metodo: 'efectivo', monto: '', nota: '' });
-    setModalMov(true);
-  };
-
-  const seleccionarTipo = (tipo) => {
-    setTipoSeleccionado(tipo);
-    // Pre-configurar origen según categoría
-    const esIngreso = tipo.categoria === 'ingreso_extra' || tipo.categoria === 'devolucion';
-    setMovData({
-      origen_pago: esIngreso ? 'caja' : 'caja',
-      metodo: 'efectivo',
-      monto: '',
-      nota: ''
-    });
-    setPasoMov(2);
-  };
-
-  const agregarMovimiento = async () => {
-    const monto = Number(movData.monto);
-    if (!monto || monto <= 0) { alert('Ingresa un monto válido'); return; }
-    if (tipoSeleccionado.requiere_nota && !movData.nota.trim()) {
-      alert('Este tipo de movimiento requiere una nota');
-      return;
-    }
-
-    const esIngreso = tipoSeleccionado.tipo_flujo === 'ingreso';
-    const esCaja = movData.origen_pago === 'caja';
-
-    // Validar saldo disponible solo si es egreso desde caja
-    if (!esIngreso && esCaja) {
-      const disponible = {
-        efectivo: Number(cajaActual.monto_apertura || 0) + (totales.efectivo || 0),
-        yape:     totales.yape    || 0,
-        plin:     totales.plin    || 0,
-      };
-      if (monto > (disponible[movData.metodo] || 0) + 0.001) {
-        alert(`Solo hay ${fmt(disponible[movData.metodo] || 0)} disponibles en ${METODO_LABEL[movData.metodo]}`);
-        return;
-      }
-    }
-
-    setGuardandoMov(true);
-    try {
-      const concepto = tipoSeleccionado.nombre + (movData.nota.trim() ? ` — ${movData.nota.trim()}` : '');
-      const insertData = {
-        id_caja:          cajaActual.id_caja,
-        id_ubicacion:     vendedora.id_ubicacion,
-        monto,
-        concepto,
-        tipo:             esIngreso ? 'ingreso' : 'egreso',
-        metodo:           esCaja ? movData.metodo : 'transferencia',
-        fecha_movimiento: new Date().toISOString(),
-        id_tipo:          tipoSeleccionado.id_tipo,
-        categoria:        tipoSeleccionado.categoria,
-        origen_pago:      movData.origen_pago,
-        pendiente_devolucion: tipoSeleccionado.categoria === 'gasto_personal' ? true : false,
-        ...(vendedora.id_persona ? { id_persona: vendedora.id_persona } : {}),
-      };
-
-      const { error } = await supabase.from('movimientos_caja').insert([insertData]);
-      if (error) throw error;
-
-      // Trackeo de obligaciones
-      if (['cuota_aly', 'ahorro_bcp'].includes(tipoSeleccionado.codigo)) {
-        await supabase.rpc('incrementar_obligacion', {
-          p_codigo: tipoSeleccionado.codigo,
-          p_monto: monto
-        }).then(async ({ error: rpcError }) => {
-          if (rpcError) {
-            // Fallback: UPDATE directo
-            const { data: obl } = await supabase.from('trackeo_obligaciones')
-              .select('acumulado').eq('codigo', tipoSeleccionado.codigo).single();
-            if (obl) {
-              await supabase.from('trackeo_obligaciones').update({
-                acumulado: Number(obl.acumulado) + monto,
-                actualizado_en: new Date().toISOString()
-              }).eq('codigo', tipoSeleccionado.codigo);
-            }
-          }
-        });
-      }
-
-      // Si paga desde ahorro BCP, descontar del acumulado
-      if (movData.origen_pago === 'ahorro_bcp') {
-        const { data: obl } = await supabase.from('trackeo_obligaciones')
-          .select('acumulado').eq('codigo', 'ahorro_bcp').single();
-        if (obl) {
-          await supabase.from('trackeo_obligaciones').update({
-            acumulado: Math.max(0, Number(obl.acumulado) - monto),
-            actualizado_en: new Date().toISOString()
-          }).eq('codigo', 'ahorro_bcp');
-        }
-      }
-
-      setModalMov(false);
-      await cargarDatosCaja(cajaActual);
-      await cargarObligaciones();
-    } catch(e) { alert('Error: ' + e.message); }
-    finally { setGuardandoMov(false); }
-  };
-
-  // ─── CREAR NUEVO TIPO ───────────────────────────────────────────────────────
-  const crearNuevoTipo = async () => {
-    if (!nuevoTipo.nombre.trim() || !nuevoTipo.emoji.trim()) {
-      alert('Nombre y emoji son obligatorios');
-      return;
-    }
-    setGuardandoTipo(true);
-    try {
-      const codigo = nuevoTipo.nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      const { error } = await supabase.from('tipos_movimiento_caja').insert([{
-        codigo,
-        nombre:        nuevoTipo.nombre.trim(),
-        emoji:         nuevoTipo.emoji.trim(),
-        categoria:     nuevoTipo.categoria,
-        tipo_flujo:    nuevoTipo.tipo_flujo,
-        requiere_nota: nuevoTipo.requiere_nota,
-        activo:        true,
-        orden:         99,
-      }]);
-      if (error) throw error;
-      setModalNuevoTipo(false);
-      setNuevoTipo({ nombre: '', emoji: '', categoria: 'gasto_operativo', tipo_flujo: 'egreso', requiere_nota: false });
-      await cargarTiposMovimiento();
-    } catch(e) { alert('Error: ' + e.message); }
-    finally { setGuardandoTipo(false); }
-  };
 
   // ─── VALORES DERIVADOS CIERRE ──────────────────────────────────────────────
   const esperadoEfectivo  = cajaActual ? Number(cajaActual.monto_apertura || 0) + (totales.efectivo || 0) : 0;
@@ -1011,7 +836,7 @@ export default function Caja({ vendedora, logout, onVolver }) {
 
               {/* Acciones */}
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={abrirModalMov}
+                <button onClick={() => setQuickEntryAbierto(true)}
                   className="py-3 border-2 border-slate-900 text-slate-900 font-bold rounded-xl text-sm active:scale-95 transition-transform">
                   + Movimiento
                 </button>
@@ -1093,221 +918,19 @@ export default function Caja({ vendedora, logout, onVolver }) {
         </div>
       )}
 
-      {/* ── MODAL MOVIMIENTO — NUEVO FLUJO 2 PASOS ── */}
-      {modalMov && (
-        <Sheet
-          title={pasoMov === 1 ? 'Tipo de movimiento' : tipoSeleccionado?.nombre || 'Registrar'}
-          onClose={() => setModalMov(false)}
-        >
-          {/* ── PASO 1: Seleccionar tipo ── */}
-          {pasoMov === 1 && (
-            <div className="space-y-5">
-              {SECCIONES_CATEGORIA.map(sec => {
-                const tipos = tiposMovimiento.filter(t => t.categoria === sec.key);
-                if (tipos.length === 0) return null;
-                return (
-                  <div key={sec.key}>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{sec.titulo}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {tipos.map(t => (
-                        <button key={t.id_tipo}
-                          onClick={() => seleccionarTipo(t)}
-                          className={`bg-white border border-black/10 rounded-2xl min-h-[64px] flex flex-col items-center justify-center gap-1 p-3 text-center active:scale-[0.97] transition-transform`}
-                        >
-                          <span className="text-2xl">{t.emoji}</span>
-                          <span className="text-xs font-bold text-slate-700">{t.nombre}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Botón agregar tipo */}
-              <button
-                onClick={() => setModalNuevoTipo(true)}
-                className="w-full py-3.5 border-2 border-dashed border-slate-300 text-slate-400 font-bold rounded-2xl text-sm active:scale-[0.98] transition-transform"
-              >
-                + Agregar tipo de movimiento
-              </button>
-            </div>
-          )}
-
-          {/* ── PASO 2: Monto, origen y método ── */}
-          {pasoMov === 2 && tipoSeleccionado && (
-            <div className="space-y-4">
-              {/* Botón volver */}
-              <button onClick={() => setPasoMov(1)} className="text-xs text-slate-400 mb-1">
-                ← Cambiar tipo
-              </button>
-
-              {/* Chip tipo seleccionado */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl w-fit">
-                <span className="text-lg">{tipoSeleccionado.emoji}</span>
-                <span className="text-sm font-bold text-slate-700">{tipoSeleccionado.nombre}</span>
-              </div>
-
-              {/* Origen — solo si NO es ingreso_extra ni devolucion */}
-              {tipoSeleccionado.categoria !== 'ingreso_extra' && tipoSeleccionado.categoria !== 'devolucion' && (
-                <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Origen del pago</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: 'caja', emoji: '📦', label: 'Caja del día' },
-                      { key: 'ahorro_bcp', emoji: '💰', label: 'Ahorro BCP' },
-                    ].map(o => (
-                      <button key={o.key}
-                        onClick={() => setMovData(d => ({ ...d, origen_pago: o.key }))}
-                        className={`min-h-[48px] flex items-center justify-center gap-2 rounded-2xl border-2 font-bold text-sm transition-colors ${
-                          movData.origen_pago === o.key
-                            ? 'bg-slate-800 text-white border-slate-800'
-                            : 'bg-white border-black/10 text-slate-600'
-                        }`}
-                      >
-                        <span>{o.emoji}</span>
-                        <span>{o.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Método de pago — solo si origen = caja */}
-              {movData.origen_pago === 'caja' && tipoSeleccionado.tipo_flujo !== 'ingreso' && (
-                <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Método de pago</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {METODOS_MOV.map(k => (
-                      <button key={k}
-                        onClick={() => setMovData(d => ({ ...d, metodo: k }))}
-                        className={`min-h-[48px] text-xs font-bold rounded-xl border-2 transition-colors ${
-                          movData.metodo === k ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-600'
-                        }`}>
-                        {METODO_LABEL[k]}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Método para ingresos */}
-              {(tipoSeleccionado.tipo_flujo === 'ingreso' || tipoSeleccionado.categoria === 'ingreso_extra' || tipoSeleccionado.categoria === 'devolucion') && (
-                <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Método</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {METODOS_MOV.map(k => (
-                      <button key={k}
-                        onClick={() => setMovData(d => ({ ...d, metodo: k }))}
-                        className={`min-h-[48px] text-xs font-bold rounded-xl border-2 transition-colors ${
-                          movData.metodo === k ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-600'
-                        }`}>
-                        {METODO_LABEL[k]}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Monto */}
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Monto</p>
-              <input type="number" inputMode="decimal" value={movData.monto} placeholder="0.00"
-                onChange={e => setMovData(d => ({...d, monto: e.target.value}))}
-                className="w-full px-4 py-4 text-4xl font-black border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-center font-mono" />
-
-              {/* Nota */}
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                  Nota {tipoSeleccionado.requiere_nota && <span className="text-red-400">*</span>}
-                </p>
-                <input type="text" value={movData.nota}
-                  placeholder={PLACEHOLDER_NOTA[tipoSeleccionado.codigo] || 'Nota opcional...'}
-                  onChange={e => setMovData(d => ({...d, nota: e.target.value}))}
-                  className="w-full px-4 py-3 border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-sm" />
-              </div>
-
-              {/* Preview */}
-              {movData.monto && (
-                <div className="px-3 py-2 bg-slate-50 rounded-xl text-xs text-slate-500">
-                  {tipoSeleccionado.tipo_flujo === 'ingreso'
-                    ? `Se suma ${fmt(movData.monto)} a ${METODO_LABEL[movData.metodo]}`
-                    : movData.origen_pago === 'ahorro_bcp'
-                      ? `Se registra ${fmt(movData.monto)} desde Ahorro BCP (no resta de caja)`
-                      : `Se resta ${fmt(movData.monto)} de ${METODO_LABEL[movData.metodo]}`
-                  }
-                </div>
-              )}
-
-              <button onClick={agregarMovimiento}
-                disabled={guardandoMov || !movData.monto || (tipoSeleccionado.requiere_nota && !movData.nota.trim())}
-                className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-40 active:scale-[0.98] transition-transform">
-                {guardandoMov ? 'Guardando...' : 'Registrar'}
-              </button>
-            </div>
-          )}
-        </Sheet>
-      )}
-
-      {/* ── SUB-MODAL: Crear nuevo tipo ── */}
-      {modalNuevoTipo && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center" onClick={() => setModalNuevoTipo(false)}>
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-base">Nuevo tipo de movimiento</h3>
-              <button onClick={() => setModalNuevoTipo(false)} className="text-slate-400 text-2xl">×</button>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Nombre</p>
-              <input type="text" value={nuevoTipo.nombre}
-                onChange={e => setNuevoTipo(n => ({ ...n, nombre: e.target.value }))}
-                placeholder="Ej: Pago internet"
-                className="w-full px-4 py-3 border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-sm" />
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Emoji</p>
-              <input type="text" value={nuevoTipo.emoji}
-                onChange={e => setNuevoTipo(n => ({ ...n, emoji: e.target.value }))}
-                placeholder="Ej: 🌐"
-                className="w-full px-4 py-3 border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-sm"
-                maxLength={4} />
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Categoría</p>
-              <select value={nuevoTipo.categoria}
-                onChange={e => setNuevoTipo(n => ({ ...n, categoria: e.target.value }))}
-                className="w-full px-4 py-3 border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-sm">
-                {CATEGORIAS_SELECT.map(c => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Tipo de flujo</p>
-              <select value={nuevoTipo.tipo_flujo}
-                onChange={e => setNuevoTipo(n => ({ ...n, tipo_flujo: e.target.value }))}
-                className="w-full px-4 py-3 border-2 border-slate-200 focus:border-slate-900 rounded-xl outline-none text-sm">
-                <option value="egreso">Egreso</option>
-                <option value="ingreso">Ingreso</option>
-                <option value="ambos">Ambos</option>
-              </select>
-            </div>
-
-            <label className="flex items-center gap-3 py-2">
-              <input type="checkbox" checked={nuevoTipo.requiere_nota}
-                onChange={e => setNuevoTipo(n => ({ ...n, requiere_nota: e.target.checked }))}
-                className="w-5 h-5 rounded" />
-              <span className="text-sm text-slate-600">Requiere nota obligatoria</span>
-            </label>
-
-            <button onClick={crearNuevoTipo} disabled={guardandoTipo || !nuevoTipo.nombre.trim() || !nuevoTipo.emoji.trim()}
-              className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl disabled:opacity-40 active:scale-[0.98] transition-transform">
-              {guardandoTipo ? 'Guardando...' : 'Crear tipo'}
-            </button>
-          </div>
-        </div>
+      {/* ── QUICK ENTRY ── */}
+      {quickEntryAbierto && (
+        <QuickEntry
+          scope="pos"
+          contexto={{ idUbicacion: vendedora?.id_ubicacion ?? null, idCaja: cajaActual?.id_caja ?? null }}
+          filtroDireccion="salida"
+          onSubmit={async () => {
+            setQuickEntryAbierto(false);
+            if (cajaActual) await cargarDatosCaja(cajaActual);
+            await cargarObligaciones();
+          }}
+          onClose={() => setQuickEntryAbierto(false)}
+        />
       )}
 
       {/* ── MODAL CIERRE — 2 pasos: resumen → confirmar o arqueo ── */}

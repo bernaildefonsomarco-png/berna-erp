@@ -7,6 +7,7 @@ import {
   formatMoney, formatDate, agruparCuentasJerarquicas,
   calcularRollupCuenta, COLOR_TIPO_CUENTA
 } from '../lib/calculos';
+import { generarCodigoCuenta } from '../lib/codegen';
 import { puedeRegistrar, puedeEditar, RECURSOS } from '../lib/permisos';
 import {
   Card, MetricCard, Badge, Button, Modal, Field, Input, Select,
@@ -139,13 +140,13 @@ export default function Cuentas({ usuario }) {
       />
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-[#991b1b]" style={{ fontWeight: 400 }}>
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/50 text-sm text-destructive" style={{ fontWeight: 400 }}>
           {error}
         </div>
       )}
 
       {personas.length === 0 && (
-        <div className="mb-4 p-3 rounded-lg bg-[#fef3c7] border border-[#fcd34d] text-sm text-[#854d0e]" style={{ fontWeight: 400 }}>
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-300 text-sm text-amber-700" style={{ fontWeight: 400 }}>
           Aún no hay personas con acceso a Finanzas registradas. Ve a{' '}
           <a href="/finanzas/configuracion" className="underline" style={{ fontWeight: 500 }}>Configuración</a>
           {' '}para dar acceso a Papá, Mamá u otras personas.
@@ -239,10 +240,10 @@ export default function Cuentas({ usuario }) {
             </>
           }
         >
-          <p className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>
+          <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
             ¿Seguro que quieres archivar <span style={{ fontWeight: 500, color: '#1c1917' }}>{confirmArchivar.nombre}</span>?
           </p>
-          <p className="text-xs text-[#a8a29e] mt-2" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground mt-2" style={{ fontWeight: 400 }}>
             La cuenta no se elimina, solo se oculta. Los movimientos históricos se conservan.
           </p>
         </Modal>
@@ -266,16 +267,16 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
   return (
     <div>
       <div
-        className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#fafaf9] transition-colors cursor-pointer group"
+        className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer group"
         style={{ paddingLeft: 12 + indent }}
         onClick={() => onClick(cuenta)}
       >
         {tieneHijos ? (
           <button
             onClick={e => { e.stopPropagation(); setExpandido(!expandido); }}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-[#f5f5f4] flex-shrink-0"
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted flex-shrink-0"
           >
-            <Icon d={expandido ? ICONS.chevronDown : ICONS.chevronRight} size={14} className="text-[#a8a29e]" />
+            <Icon d={expandido ? ICONS.chevronDown : ICONS.chevronRight} size={14} className="text-muted-foreground" />
           </button>
         ) : (
           <div className="w-5 h-5 flex-shrink-0" />
@@ -288,9 +289,9 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm text-[#1c1917] truncate" style={{ fontWeight: 500 }}>{cuenta.nombre}</p>
+            <p className="text-sm text-foreground truncate" style={{ fontWeight: 500 }}>{cuenta.nombre}</p>
             {cuenta.alias && (
-              <span className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>· {cuenta.alias}</span>
+              <span className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>· {cuenta.alias}</span>
             )}
             {cuenta.es_cuenta_personal && (
               <Badge color="warning" size="sm">Personal</Badge>
@@ -304,10 +305,10 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
               {colorTipo.label}
             </span>
             {cuenta.custodio && (
-              <span className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>{cuenta.custodio.nombre}</span>
+              <span className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>{cuenta.custodio.nombre}</span>
             )}
             {tieneHijos && (
-              <span className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>
+              <span className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>
                 · {cuenta.hijos.length} sub-cuenta{cuenta.hijos.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -315,11 +316,11 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className="text-sm text-[#1c1917] fin-num" style={{ fontWeight: 500 }}>
+          <p className="text-sm text-foreground fin-num" style={{ fontWeight: 500 }}>
             {formatMoney(cuenta.saldo_actual)}
           </p>
           {tieneHijos && saldoRollup !== Number(cuenta.saldo_actual) && (
-            <p className="text-[11px] text-[#a8a29e] fin-num mt-0.5" style={{ fontWeight: 400 }}>
+            <p className="text-[11px] text-muted-foreground fin-num mt-0.5" style={{ fontWeight: 400 }}>
               Total {formatMoney(saldoRollup)}
             </p>
           )}
@@ -328,7 +329,7 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
         {onAddChild && (
           <button
             onClick={e => { e.stopPropagation(); onAddChild(cuenta.id_cuenta); }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#f5f5f4] text-[#a8a29e] hover:text-[#1c1917] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
             title="Agregar sub-cuenta"
           >
             <Icon d={ICONS.plus} size={14} />
@@ -360,7 +361,7 @@ function CuentaItem({ cuenta, nivel, onClick, onAddChild }) {
 
 function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, valoresIniciales }) {
   const [form, setForm] = useState({
-    codigo: '',
+    codigo: valoresIniciales?.codigo || '',
     nombre: '',
     alias: '',
     tipo_cuenta: 'operativa',
@@ -383,8 +384,6 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
 
   const validar = () => {
     const errs = {};
-    if (!form.codigo?.trim()) errs.codigo = 'Requerido';
-    else if (!/^[A-Z0-9_]+$/.test(form.codigo)) errs.codigo = 'Solo mayúsculas, números y guion bajo';
     if (!form.nombre?.trim()) errs.nombre = 'Requerido';
     if (!form.tipo_cuenta) errs.tipo_cuenta = 'Requerido';
     setErrorForm(errs);
@@ -396,7 +395,7 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
     setGuardando(true);
     try {
       const payload = {
-        codigo: form.codigo.trim().toUpperCase(),
+        codigo: codigoAutoGenerado,
         nombre: form.nombre.trim(),
         alias: form.alias?.trim() || null,
         tipo_cuenta: form.tipo_cuenta,
@@ -418,17 +417,19 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
 
   const setF = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+  // Auto-generar código cuando cambia el tipo (solo en creación)
+  const codigoAutoGenerado = useMemo(() => {
+    if (valoresIniciales?.codigo) return valoresIniciales.codigo;
+    return generarCodigoCuenta(form.tipo_cuenta, cuentas.map(c => c.codigo));
+  }, [form.tipo_cuenta, cuentas, valoresIniciales]);
+
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Código" required error={errorForm.codigo} hint="Ej: CAJA_PROD, AHORRO_BCP">
-          <Input
-            value={form.codigo}
-            onChange={v => setF('codigo', v.toUpperCase())}
-            placeholder="CAJA_PROD"
-            error={errorForm.codigo}
-          />
-        </Field>
+        <div className="flex flex-col justify-end">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Código (auto)</p>
+          <p className="text-sm font-mono text-foreground bg-muted/30 border border-border rounded-lg px-3 py-2.5">{codigoAutoGenerado}</p>
+        </div>
 
         <Field label="Tipo" required error={errorForm.tipo_cuenta}>
           <Select
@@ -491,7 +492,7 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
         />
       </Field>
 
-      <div className="border-t border-[#f5f5f4] pt-4 mt-4">
+      <div className="border-t border-border/50 pt-4 mt-4">
         <label className="flex items-start gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -500,14 +501,14 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
             className="mt-0.5"
           />
           <div>
-            <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>Cuenta a nombre personal</p>
-            <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>Marcar si legalmente está a nombre de una persona, no del negocio</p>
+            <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>Cuenta a nombre personal</p>
+            <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>Marcar si legalmente está a nombre de una persona, no del negocio</p>
           </div>
         </label>
       </div>
 
       {form.es_cuenta_personal && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 p-3 bg-[#fef9c3]/30 rounded-lg border border-[#fde68a]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 p-3 bg-amber-50/40/30 rounded-lg border border-amber-200">
           <Field label="Titular legal">
             <Input value={form.titular_legal} onChange={v => setF('titular_legal', v)} placeholder="Nombre del titular" />
           </Field>
@@ -517,7 +518,7 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
         </div>
       )}
 
-      <div className="border-t border-[#f5f5f4] pt-4 mt-4">
+      <div className="border-t border-border/50 pt-4 mt-4">
         <label className="flex items-start gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -526,8 +527,8 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
             className="mt-0.5"
           />
           <div>
-            <p className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>Aparece como destino al cerrar tienda</p>
-            <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+            <p className="text-sm text-foreground" style={{ fontWeight: 500 }}>Aparece como destino al cerrar tienda</p>
+            <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
               Si está marcado, esta cuenta aparece como opción al cerrar caja diaria en cualquier tienda.
               Por defecto solo Caja Producción y Caja Administración están marcadas.
             </p>
@@ -542,11 +543,11 @@ function FormCuenta({ cuentas, personas, padrePreSelect, onSubmit, onCancel, val
           rows={2}
           placeholder="Observaciones, contexto..."
           style={{ fontWeight: 400 }}
-          className="w-full px-3 py-2 rounded-lg border border-[#e7e5e4] bg-white text-sm placeholder:text-[#a8a29e] focus:outline-none focus:border-[#1c1917] focus:ring-1 focus:ring-[#1c1917]"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:border-ring focus:ring-1 focus-visible:ring-ring/50"
         />
       </Field>
 
-      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit} disabled={guardando}>
           {guardando ? <><Spinner size={14}/> Guardando...</> : 'Guardar cuenta'}
@@ -581,7 +582,7 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
 
   return (
     <div>
-      <div className="flex items-start gap-4 pb-4 border-b border-[#f5f5f4]">
+      <div className="flex items-start gap-4 pb-4 border-b border-border/50">
         <div
           className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ backgroundColor: colorTipo.bg }}
@@ -590,22 +591,22 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-[17px] text-[#1c1917]" style={{ fontWeight: 600 }}>{cuenta.nombre}</h2>
+            <h2 className="text-[17px] text-foreground" style={{ fontWeight: 600 }}>{cuenta.nombre}</h2>
             <Badge color="gray" size="sm">{colorTipo.label}</Badge>
             {cuenta.es_cuenta_personal && <Badge color="warning" size="sm">Personal</Badge>}
           </div>
-          {cuenta.alias && <p className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>{cuenta.alias}</p>}
-          <p className="text-xs text-[#a8a29e] mt-1" style={{ fontWeight: 400 }}>Código: <span className="font-mono">{cuenta.codigo}</span></p>
+          {cuenta.alias && <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>{cuenta.alias}</p>}
+          <p className="text-xs text-muted-foreground mt-1" style={{ fontWeight: 400 }}>Código: <span className="font-mono">{cuenta.codigo}</span></p>
         </div>
         <div className="text-right">
-          <p className="text-[24px] text-[#1c1917] fin-num leading-none" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
+          <p className="text-[24px] text-foreground fin-num leading-none" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
             {formatMoney(cuenta.saldo_actual)}
           </p>
-          <p className="text-xs text-[#a8a29e] mt-1.5" style={{ fontWeight: 400 }}>Saldo actual</p>
+          <p className="text-xs text-muted-foreground mt-1.5" style={{ fontWeight: 400 }}>Saldo actual</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-[#f5f5f4] mt-4">
+      <div className="flex items-center gap-1 border-b border-border/50 mt-4">
         {[
           { k: 'info',        label: 'Información' },
           { k: 'movimientos', label: 'Movimientos' },
@@ -616,8 +617,8 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
             onClick={() => setTab(t.k)}
             className={`px-3 py-2 text-sm transition-colors border-b-2 -mb-px ${
               tab === t.k
-                ? 'text-[#1c1917] border-[#1c1917]'
-                : 'text-[#a8a29e] border-transparent hover:text-[#57534e]'
+                ? 'text-foreground border-ring'
+                : 'text-muted-foreground border-transparent hover:text-muted-foreground'
             }`}
             style={{ fontWeight: tab === t.k ? 500 : 400 }}
           >
@@ -646,8 +647,8 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
             <DetalleField label="Actualizada" value={formatDate(cuenta.updated_at)} />
             {cuenta.notas && (
               <div className="pt-3">
-                <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-1.5" style={{ fontWeight: 500 }}>Notas</p>
-                <p className="text-sm text-[#1c1917] bg-[#fafaf9] rounded-lg p-3" style={{ fontWeight: 400 }}>{cuenta.notas}</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5" style={{ fontWeight: 500 }}>Notas</p>
+                <p className="text-sm text-foreground bg-muted/30 rounded-lg p-3" style={{ fontWeight: 400 }}>{cuenta.notas}</p>
               </div>
             )}
           </div>
@@ -664,9 +665,9 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
                 description="Cuando registres movimientos sobre esta cuenta, aparecerán aquí."
               />
             ) : (
-              <div className="border border-[#e7e5e4] rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#fafaf9] text-[11px] text-[#a8a29e] uppercase tracking-wider">
+                  <thead className="bg-muted/30 text-[11px] text-muted-foreground uppercase tracking-wider">
                     <tr>
                       <th className="px-4 py-2.5 text-left" style={{ fontWeight: 500 }}>Fecha</th>
                       <th className="px-4 py-2.5 text-left" style={{ fontWeight: 500 }}>Concepto</th>
@@ -675,11 +676,11 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
                   </thead>
                   <tbody>
                     {movs.map(m => (
-                      <tr key={m.id_movimiento} className="border-t border-[#f5f5f4]">
-                        <td className="px-4 py-2.5 text-[#57534e] fin-num" style={{ fontWeight: 400 }}>{formatDate(m.fecha_movimiento)}</td>
-                        <td className="px-4 py-2.5 text-[#1c1917]" style={{ fontWeight: 400 }}>{m.concepto}</td>
+                      <tr key={m.id_movimiento} className="border-t border-border/50">
+                        <td className="px-4 py-2.5 text-muted-foreground fin-num" style={{ fontWeight: 400 }}>{formatDate(m.fecha_movimiento)}</td>
+                        <td className="px-4 py-2.5 text-foreground" style={{ fontWeight: 400 }}>{m.concepto}</td>
                         <td className={`px-4 py-2.5 text-right fin-num ${
-                          m.tipo === 'ingreso' ? 'text-[#166534]' : 'text-[#991b1b]'
+                          m.tipo === 'ingreso' ? 'text-green-700' : 'text-destructive'
                         }`} style={{ fontWeight: 500 }}>
                           {m.tipo === 'ingreso' ? '+' : '−'}{formatMoney(m.monto)}
                         </td>
@@ -694,7 +695,7 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
 
         {tab === 'config' && (
           <div className="space-y-3">
-            <p className="text-sm text-[#57534e] mb-4" style={{ fontWeight: 400 }}>
+            <p className="text-sm text-muted-foreground mb-4" style={{ fontWeight: 400 }}>
               Acciones administrativas. Cambios aquí afectan el comportamiento de la cuenta en todo el sistema.
             </p>
 
@@ -717,8 +718,8 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
             </div>
 
             {editando && (
-              <div className="mt-4 pt-4 border-t border-[#f5f5f4]">
-                <p className="text-sm text-[#1c1917] mb-3" style={{ fontWeight: 500 }}>Editar cuenta</p>
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <p className="text-sm text-foreground mb-3" style={{ fontWeight: 500 }}>Editar cuenta</p>
                 <FormCuenta
                   cuentas={cuentas}
                   personas={personas}
@@ -742,8 +743,8 @@ function DetalleCuenta({ cuenta, personas, cuentas, puedeEditar, onActualizar, o
 function DetalleField({ label, value }) {
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-[#a8a29e] uppercase tracking-wider" style={{ fontWeight: 500 }}>{label}</span>
-      <span className="text-sm text-[#1c1917]" style={{ fontWeight: 500 }}>{value}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wider" style={{ fontWeight: 500 }}>{label}</span>
+      <span className="text-sm text-foreground" style={{ fontWeight: 500 }}>{value}</span>
     </div>
   );
 }

@@ -1,13 +1,13 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from './App.jsx';
 import './index.css';
 
 const FinanzasGate = lazy(() => import('./views/finanzas/FinanzasGate.jsx'));
 const FinanzasLayout = lazy(() => import('./views/finanzas/FinanzasLayout.jsx'));
-const RapidoGate   = lazy(() => import('./views/rapido/RapidoGate.jsx'));
-const RapidoLayout = lazy(() => import('./views/rapido/RapidoLayout.jsx'));
+const ComandoGate   = lazy(() => import('./views/comando/ComandoGate.jsx'));
+const ComandoLayout = lazy(() => import('./views/comando/ComandoLayout.jsx'));
 
 const Spinner = () => (
   <div className="min-h-screen bg-white flex items-center justify-center">
@@ -30,14 +30,14 @@ function FinanzasRoot() {
   );
 }
 
-function RapidoRoot() {
+function ComandoRoot() {
   return (
     <Suspense fallback={<Spinner />}>
-      <RapidoGate>
+      <ComandoGate>
         {({ usuario, logout }) => (
-          <RapidoLayout usuario={usuario} logout={logout} />
+          <ComandoLayout usuario={usuario} logout={logout} />
         )}
-      </RapidoGate>
+      </ComandoGate>
     </Suspense>
   );
 }
@@ -47,7 +47,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/finanzas/*" element={<FinanzasRoot />} />
-        <Route path="/rapido/*"   element={<RapidoRoot />} />
+        <Route path="/rapido/*"   element={<Navigate to="/comando" replace />} />
+        <Route path="/comando/*"  element={<ComandoRoot />} />
         <Route path="/*"          element={<App />} />
       </Routes>
     </BrowserRouter>

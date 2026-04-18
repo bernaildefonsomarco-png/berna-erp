@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { formatMoney } from '../lib/calculos';
+import { cn } from '@/lib/utils';
+import { Button as ShadButton } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import {
+  Sheet as ShadSheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
 
 /* ──────────────────────────────────────────────────────────────────────────
-   FINANZAS · COMPONENTES UI BASE
+   FINANZAS · UI SYSTEM
    ──────────────────────────────────────────────────────────────────────────
-   Tipografía refinada: 400 para body, 500 para énfasis suave,
-   600 solo para headings. Sin excesos de negrita.
+   Todos los primitivos del módulo Finanzas. Usar tokens CSS del tema shadcn
+   en vez de colores hardcodeados para mantener consistencia y permitir dark
+   mode en el futuro.
+
+   Semántica de color funcional:
+     text-foreground          → contenido primario
+     text-muted-foreground    → labels, metadata, secondary
+     bg-card / bg-muted       → fondos de contenedores
+     border-border            → bordes estándar
+     text-green-700           → valores positivos / ingresos
+     text-red-700 / text-destructive → valores negativos / egresos
+     text-amber-700           → alertas / pendientes
    ────────────────────────────────────────────────────────────────────────── */
 
 
@@ -22,7 +39,7 @@ export function Icon({ d, size = 18, className = '', strokeWidth = 1.6, style })
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={cn('shrink-0', className)}
       style={style}
     >
       <path d={d} />
@@ -48,7 +65,7 @@ export const ICONS = {
   check:       'M20 6L9 17l-5-5',
   x:           'M18 6L6 18M6 6l12 12',
   logout:      'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
-  filter:      'M22 3H2l8 9.46V19l4 2v-8.54L22 3z',
+  filter:      'M22 3H2l8 9.46V19l4 2v-8.54L22 3',
   download:    'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3',
   upload:      'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12',
   eye:         'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z',
@@ -70,33 +87,46 @@ export const ICONS = {
 
 export function Card({ children, className = '', padding = 'md', hover = false }) {
   const padClass = padding === 'sm' ? 'p-3' : padding === 'lg' ? 'p-6' : 'p-5';
-  const base = 'bg-white border border-[#e7e5e4] rounded-xl';
-  const hoverClass = hover ? 'hover:border-[#d6d3d1] transition-colors' : '';
-  return <div className={`${base} ${hoverClass} ${padClass} ${className}`}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        'bg-card text-card-foreground rounded-xl ring-1 ring-border',
+        hover && 'cursor-pointer transition-shadow hover:shadow-md',
+        padClass,
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 
-/* ─── Metric Card (KPI) ───────────────────────────────────────────────── */
+/* ─── MetricCard (KPI) ────────────────────────────────────────────────── */
 
-export function MetricCard({ label, value, sublabel, isMoney = true, accent }) {
+export function MetricCard({ label, value, sublabel, isMoney = true, accent, loading }) {
   const formatted = isMoney ? formatMoney(value) : value;
-  const accentColor = accent === 'success' ? '#166534'
-                    : accent === 'danger'  ? '#991b1b'
-                    : accent === 'warning' ? '#854d0e'
-                    : '#1c1917';
+  const colorClass =
+    accent === 'success' ? 'text-green-700' :
+    accent === 'danger'  ? 'text-destructive' :
+    accent === 'warning' ? 'text-amber-700' :
+    'text-foreground';
 
   return (
-    <div className="bg-white border border-[#e7e5e4] rounded-xl p-5">
-      <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
+    <div className="flex flex-col gap-2 rounded-xl bg-card ring-1 ring-border p-5">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
-      <p
-        className="text-[26px] leading-none fin-num"
-        style={{ fontWeight: 500, color: accentColor, letterSpacing: '-0.02em' }}
-      >
-        {formatted}
-      </p>
-      {sublabel && <p className="text-xs text-[#a8a29e] mt-2" style={{ fontWeight: 400 }}>{sublabel}</p>}
+      {loading ? (
+        <Skeleton className="mt-1 h-8 w-24" />
+      ) : (
+        <p className={cn('text-[26px] font-semibold leading-none tracking-tight tabular-nums', colorClass)}>
+          {formatted}
+        </p>
+      )}
+      {sublabel && !loading && (
+        <p className="text-xs text-muted-foreground">{sublabel}</p>
+      )}
     </div>
   );
 }
@@ -104,24 +134,21 @@ export function MetricCard({ label, value, sublabel, isMoney = true, accent }) {
 
 /* ─── Badge ───────────────────────────────────────────────────────────── */
 
-export function Badge({ children, color = 'gray', size = 'md' }) {
-  const palette = {
-    gray:    { bg: '#f5f5f4', text: '#57534e' },
-    success: { bg: '#dcfce7', text: '#166534' },
-    danger:  { bg: '#fee2e2', text: '#991b1b' },
-    warning: { bg: '#fef3c7', text: '#854d0e' },
-    info:    { bg: '#dbeafe', text: '#1e40af' },
-    purple:  { bg: '#ede9fe', text: '#5b21b6' },
-    teal:    { bg: '#ccfbf1', text: '#115e59' },
-  };
-  const { bg, text } = palette[color] || palette.gray;
-  const sizeClass = size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]';
+const BADGE_STYLES = {
+  gray:    'bg-muted text-muted-foreground',
+  success: 'bg-green-50 text-green-700',
+  danger:  'bg-destructive/10 text-destructive',
+  warning: 'bg-amber-50 text-amber-700',
+  info:    'bg-blue-50 text-blue-700',
+  purple:  'bg-purple-50 text-purple-700',
+  teal:    'bg-teal-50 text-teal-700',
+};
 
+export function Badge({ children, color = 'gray', size = 'md' }) {
+  const palette = BADGE_STYLES[color] || BADGE_STYLES.gray;
+  const sizeClass = size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]';
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md ${sizeClass}`}
-      style={{ backgroundColor: bg, color: text, fontWeight: 500 }}
-    >
+    <span className={cn('inline-flex items-center gap-1 rounded-md font-medium', sizeClass, palette)}>
       {children}
     </span>
   );
@@ -130,56 +157,78 @@ export function Badge({ children, color = 'gray', size = 'md' }) {
 
 /* ─── Button ──────────────────────────────────────────────────────────── */
 
-export function Button({ children, variant = 'secondary', size = 'md', icon, onClick, disabled, type = 'button', className = '' }) {
-  const base = 'inline-flex items-center justify-center gap-2 rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
+const VARIANT_MAP = {
+  primary:   'default',
+  secondary: 'outline',
+  ghost:     'ghost',
+  danger:    'destructive',
+};
+const SIZE_MAP = {
+  sm: 'sm',
+  md: 'default',
+  lg: 'lg',
+};
 
-  const variantClass =
-    variant === 'primary' ? 'bg-[#1c1917] text-white hover:bg-[#292524]' :
-    variant === 'ghost'   ? 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#f5f5f4]' :
-    variant === 'danger'  ? 'bg-white border border-[#fca5a5] text-[#991b1b] hover:bg-[#fef2f2]' :
-    'bg-white border border-[#e7e5e4] text-[#1c1917] hover:bg-[#fafaf9] hover:border-[#d6d3d1]';
-
-  const sizeClass =
-    size === 'sm' ? 'px-3 py-1.5 text-xs' :
-    size === 'lg' ? 'px-5 py-2.5 text-sm' :
-    'px-4 py-2 text-[13px]';
-
+export function Button({
+  children,
+  variant = 'secondary',
+  size = 'md',
+  icon,
+  onClick,
+  disabled,
+  type = 'button',
+  className = '',
+}) {
   return (
-    <button
+    <ShadButton
       type={type}
+      variant={VARIANT_MAP[variant] || 'outline'}
+      size={SIZE_MAP[size] || 'default'}
       onClick={onClick}
       disabled={disabled}
-      style={{ fontWeight: 500 }}
-      className={`${base} ${variantClass} ${sizeClass} ${className}`}
+      className={className}
     >
       {icon && <Icon d={icon} size={size === 'sm' ? 14 : 15} />}
       {children}
-    </button>
+    </ShadButton>
   );
 }
 
 
-/* ─── Input / Label / Field ───────────────────────────────────────────── */
+/* ─── Field / Label ───────────────────────────────────────────────────── */
 
 export function Field({ label, children, error, required, hint }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4 space-y-1.5">
       {label && (
-        <label className="block text-xs text-[#57534e] mb-1.5" style={{ fontWeight: 500 }}>
+        <label className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
-          {required && <span className="text-[#991b1b] ml-0.5">*</span>}
+          {required && <span className="ml-0.5 text-destructive">*</span>}
         </label>
       )}
       {children}
-      {hint && !error && <p className="text-[11px] text-[#a8a29e] mt-1.5" style={{ fontWeight: 400 }}>{hint}</p>}
-      {error && <p className="text-[11px] text-[#991b1b] mt-1.5" style={{ fontWeight: 500 }}>{error}</p>}
+      {hint && !error && (
+        <p className="text-[11px] text-muted-foreground">{hint}</p>
+      )}
+      {error && (
+        <p className="text-[11px] font-medium text-destructive" role="alert">{error}</p>
+      )}
     </div>
   );
 }
 
-const INPUT_BASE = 'w-full h-10 px-3 rounded-lg border bg-white text-sm text-[#1c1917] placeholder:text-[#a8a29e] focus:outline-none focus:ring-1 transition-colors';
-const INPUT_NORMAL = 'border-[#e7e5e4] focus:border-[#1c1917] focus:ring-[#1c1917]';
-const INPUT_ERROR = 'border-[#fca5a5] focus:border-[#991b1b] focus:ring-[#991b1b]';
+
+/* ─── Input / MoneyInput / Select ─────────────────────────────────────── */
+
+const inputBase = (error) => cn(
+  'flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-colors',
+  'placeholder:text-muted-foreground',
+  'focus-visible:outline-none focus-visible:ring-2',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+  error
+    ? 'border-destructive focus-visible:ring-destructive/30'
+    : 'border-input focus-visible:ring-ring/50'
+);
 
 export function Input({ value, onChange, type = 'text', placeholder, error, ...rest }) {
   return (
@@ -188,42 +237,44 @@ export function Input({ value, onChange, type = 'text', placeholder, error, ...r
       value={value ?? ''}
       onChange={e => onChange?.(e.target.value)}
       placeholder={placeholder}
-      style={{ fontWeight: 400 }}
-      className={`${INPUT_BASE} ${error ? INPUT_ERROR : INPUT_NORMAL}`}
+      aria-invalid={error ? 'true' : undefined}
+      className={inputBase(error)}
       {...rest}
     />
   );
 }
 
-export function MoneyInput({ value, onChange, placeholder = '0', ...rest }) {
+export function MoneyInput({ value, onChange, placeholder = '0', error, ...rest }) {
   const handleChange = e => {
     const v = e.target.value.replace(/[^0-9.]/g, '');
     onChange?.(v === '' ? null : Number(v));
   };
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#a8a29e]" style={{ fontWeight: 400 }}>S/.</span>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground">
+        S/.
+      </span>
       <input
         type="text"
         inputMode="decimal"
         value={value ?? ''}
         onChange={handleChange}
         placeholder={placeholder}
-        style={{ fontWeight: 400 }}
-        className={`${INPUT_BASE} ${INPUT_NORMAL} pl-9 fin-num`}
+        aria-invalid={error ? 'true' : undefined}
+        className={cn(inputBase(error), 'pl-9 tabular-nums')}
         {...rest}
       />
     </div>
   );
 }
 
-export function Select({ value, onChange, options = [], placeholder = 'Selecciona...', ...rest }) {
+export function Select({ value, onChange, options = [], placeholder = 'Selecciona...', error, ...rest }) {
   return (
     <select
       value={value ?? ''}
       onChange={e => onChange?.(e.target.value)}
-      style={{ fontWeight: 400 }}
-      className={`${INPUT_BASE} ${INPUT_NORMAL}`}
+      aria-invalid={error ? 'true' : undefined}
+      className={cn(inputBase(error), 'bg-background')}
       {...rest}
     >
       <option value="" disabled>{placeholder}</option>
@@ -235,39 +286,50 @@ export function Select({ value, onChange, options = [], placeholder = 'Seleccion
 }
 
 
-/* ─── Modal ───────────────────────────────────────────────────────────── */
+/* ─── Modal → Dialog ──────────────────────────────────────────────────── */
+
+const MODAL_SIZE = {
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
+};
 
 export function Modal({ open, onClose, title, children, size = 'md', footer }) {
-  if (!open) return null;
-  const sizeClass = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg';
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(28, 25, 23, 0.4)' }}
-      onClick={onClose}
-    >
-      <div
-        className={`bg-white rounded-2xl w-full ${sizeClass} max-h-[90vh] flex flex-col overflow-hidden border border-[#e7e5e4]`}
-        onClick={e => e.stopPropagation()}
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose?.(); }}>
+      <DialogContent
+        showCloseButton={false}
+        className={cn(
+          'flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0',
+          MODAL_SIZE[size] || MODAL_SIZE.md
+        )}
       >
         {title && (
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f5f5f4]">
-            <h3 className="text-[15px] text-[#1c1917]" style={{ fontWeight: 600 }}>{title}</h3>
-            <button onClick={onClose}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#f5f5f4] text-[#a8a29e] hover:text-[#1c1917] transition-colors">
-              <Icon d={ICONS.x} size={16} />
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+            <DialogTitle className="text-[15px] font-semibold leading-none text-foreground">
+              {title}
+            </DialogTitle>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Icon d={ICONS.x} size={15} />
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          {children}
+        </div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#f5f5f4] bg-[#fafaf9]">
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border bg-muted/30 px-5 py-3">
             {footer}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -276,14 +338,16 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }) {
 
 export function EmptyState({ icon, title, description, action }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+    <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
       {icon && (
-        <div className="w-12 h-12 rounded-full bg-[#f5f5f4] flex items-center justify-center mb-4">
-          <Icon d={icon} size={20} className="text-[#a8a29e]" />
+        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+          <Icon d={icon} size={20} className="text-muted-foreground" />
         </div>
       )}
-      <p className="text-[15px] text-[#1c1917] mb-1" style={{ fontWeight: 500 }}>{title}</p>
-      {description && <p className="text-sm text-[#57534e] max-w-sm mb-4" style={{ fontWeight: 400 }}>{description}</p>}
+      <p className="mb-1 text-[15px] font-medium text-foreground">{title}</p>
+      {description && (
+        <p className="mb-4 max-w-sm text-sm text-muted-foreground">{description}</p>
+      )}
       {action}
     </div>
   );
@@ -292,20 +356,26 @@ export function EmptyState({ icon, title, description, action }) {
 
 /* ─── Spinner / Loading ───────────────────────────────────────────────── */
 
-export function Spinner({ size = 20 }) {
+export function Spinner({ size = 20, className = '' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
-      <circle cx="12" cy="12" r="10" stroke="#e7e5e4" strokeWidth="2.5"/>
-      <path d="M12 2a10 10 0 0110 10" stroke="#1c1917" strokeWidth="2.5" strokeLinecap="round"/>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={cn('animate-spin shrink-0', className)}
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" className="opacity-20" />
+      <path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
 
 export function LoadingState({ message = 'Cargando...' }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <Spinner size={22} />
-      <p className="text-sm text-[#57534e] mt-3" style={{ fontWeight: 400 }}>{message}</p>
+    <div className="flex flex-col items-center justify-center gap-3 py-16">
+      <Spinner size={22} className="text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -317,22 +387,279 @@ export function PageHeader({ title, description, actions, breadcrumb }) {
   return (
     <div className="mb-8">
       {breadcrumb && (
-        <nav className="text-xs text-[#a8a29e] mb-2 flex items-center gap-1" style={{ fontWeight: 400 }}>
+        <nav aria-label="Ruta" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
           {breadcrumb.map((b, i) => (
             <React.Fragment key={i}>
               {i > 0 && <Icon d={ICONS.chevronRight} size={12} />}
-              <span className={i === breadcrumb.length - 1 ? 'text-[#1c1917]' : ''}>{b}</span>
+              <span className={i === breadcrumb.length - 1 ? 'text-foreground' : ''}>{b}</span>
             </React.Fragment>
           ))}
         </nav>
       )}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[24px] text-[#1c1917]" style={{ fontWeight: 600, letterSpacing: '-0.02em' }}>{title}</h1>
-          {description && <p className="text-sm text-[#57534e] mt-1.5" style={{ fontWeight: 400 }}>{description}</p>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+          {description && (
+            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+          )}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
+    </div>
+  );
+}
+
+
+/* ─── SearchableGroupedSelect ─────────────────────────────────────────── */
+
+export function SearchableGroupedSelect({
+  value,
+  onChange,
+  groups = [],
+  placeholder = 'Selecciona...',
+  disabled = false,
+  error,
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setSearchTerm('');
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && searchRef.current) searchRef.current.focus();
+  }, [open]);
+
+  const selectedLabel = (() => {
+    for (const group of groups) {
+      const found = group.options?.find(opt => String(opt.value) === String(value));
+      if (found) return found.label;
+    }
+    return null;
+  })();
+
+  const term = searchTerm.trim().toLowerCase();
+  const filteredGroups = term
+    ? groups
+        .map(g => ({
+          ...g,
+          options: (g.options || []).filter(opt =>
+            opt.label?.toLowerCase().includes(term) ||
+            opt.sublabel?.toLowerCase().includes(term)
+          ),
+        }))
+        .filter(g => g.options.length > 0)
+    : groups;
+
+  function handleSelect(val) {
+    onChange?.(val);
+    setOpen(false);
+    setSearchTerm('');
+  }
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen(prev => !prev); }}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={cn(
+          'flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-1 text-sm text-left',
+          'shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          error
+            ? 'border-destructive focus-visible:ring-destructive/30'
+            : open
+              ? 'border-ring ring-2 ring-ring/50'
+              : 'border-input focus-visible:ring-ring/50'
+        )}
+      >
+        <span className={selectedLabel ? 'text-foreground' : 'text-muted-foreground'}>
+          {selectedLabel ?? placeholder}
+        </span>
+        <Icon d={ICONS.chevronDown} size={14} className="text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
+          style={{ maxHeight: 280 }}
+        >
+          <div className="border-b border-border">
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: 232 }}>
+            {filteredGroups.length === 0 ? (
+              <p className="px-3 py-3 text-center text-sm text-muted-foreground">Sin resultados</p>
+            ) : (
+              filteredGroups.map((group, gi) => (
+                <div key={gi}>
+                  <div className="bg-muted/40 px-3 py-1.5">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </span>
+                  </div>
+                  {(group.options || []).map((opt, oi) => {
+                    const isSelected = String(opt.value) === String(value);
+                    return (
+                      <button
+                        key={oi}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => handleSelect(opt.value)}
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors',
+                          isSelected
+                            ? 'bg-muted font-medium text-foreground'
+                            : 'text-foreground hover:bg-muted/60'
+                        )}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {opt.sublabel && (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">{opt.sublabel}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ─── SideSheet ───────────────────────────────────────────────────────── */
+
+/**
+ * Panel lateral deslizante para formularios. Reemplaza los modales
+ * cuando se necesita más espacio o no bloquear la vista principal.
+ *
+ * Props:
+ *   open       boolean
+ *   onClose    () => void
+ *   title      string
+ *   description string (opcional)
+ *   children   ReactNode
+ *   side       'right' | 'left'  (default 'right')
+ *   size       'sm' | 'md' | 'lg'  (default 'md')
+ *   footer     ReactNode (opcional, se pega al fondo)
+ */
+export function SideSheet({ open, onClose, title, description, children, side = 'right', size = 'md', footer }) {
+  const widthClass = size === 'sm' ? 'w-full sm:max-w-sm' : size === 'lg' ? 'w-full sm:max-w-xl' : 'w-full sm:max-w-md';
+  return (
+    <ShadSheet open={open} onOpenChange={v => !v && onClose()}>
+      <SheetContent
+        side={side}
+        className={cn('flex flex-col gap-0 p-0', widthClass)}
+      >
+        <SheetHeader className="border-b border-border px-6 py-4 shrink-0">
+          <SheetTitle className="text-base font-semibold text-foreground">{title}</SheetTitle>
+          {description && (
+            <SheetDescription className="text-xs text-muted-foreground mt-0.5">{description}</SheetDescription>
+          )}
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {children}
+        </div>
+
+        {footer && (
+          <div className="border-t border-border px-6 py-4 shrink-0 bg-card">
+            {footer}
+          </div>
+        )}
+      </SheetContent>
+    </ShadSheet>
+  );
+}
+
+
+/* ─── ProgressBar ─────────────────────────────────────────────────────── */
+
+export function ProgressBar({ value, max, color = '#1c1917', className = '', height = 4 }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div
+      className={cn('w-full rounded-full bg-muted overflow-hidden', className)}
+      style={{ height }}
+    >
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${pct}%`, backgroundColor: color }}
+      />
+    </div>
+  );
+}
+
+
+/* ─── AvatarInitials ──────────────────────────────────────────────────── */
+
+export function AvatarInitials({ name, size = 36, className = '' }) {
+  const initials = (name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const colors = [
+    ['#dbeafe', '#1d4ed8'], ['#dcfce7', '#166534'], ['#fef3c7', '#92400e'],
+    ['#ede9fe', '#6d28d9'], ['#fee2e2', '#991b1b'], ['#e0f2fe', '#0369a1'],
+    ['#fce7f3', '#9d174d'], ['#f0fdf4', '#14532d'],
+  ];
+  const idx = (name || '').charCodeAt(0) % colors.length;
+  const [bg, fg] = colors[idx];
+  return (
+    <div
+      className={cn('flex items-center justify-center rounded-full shrink-0 font-semibold select-none', className)}
+      style={{ width: size, height: size, backgroundColor: bg, color: fg, fontSize: size * 0.38 }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+
+/* ─── Tabs (simple inline) ────────────────────────────────────────────── */
+
+export function InlineTabs({ tabs, active, onChange, className = '' }) {
+  return (
+    <div className={cn('flex items-center gap-0.5 border-b border-border/60', className)}>
+      {tabs.map(t => (
+        <button
+          key={t.k}
+          type="button"
+          onClick={() => onChange(t.k)}
+          className={cn(
+            'px-4 py-2.5 text-sm border-b-2 -mb-px transition-colors shrink-0',
+            active === t.k
+              ? 'text-foreground border-ring font-medium'
+              : 'text-muted-foreground border-transparent hover:text-foreground'
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }

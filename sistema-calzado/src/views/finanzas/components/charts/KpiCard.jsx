@@ -1,39 +1,40 @@
 import React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const fmt = (v) =>
   'S/ ' + Number(v || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const COLOR_CLASS = {
+  green:   'text-green-700',
+  red:     'text-red-700',
+  neutral: 'text-foreground',
+};
+
 /**
- * Tarjeta KPI con label, monto grande y delta opcional.
- *
- * Props:
- *   label    — string
- *   value    — number
- *   delta    — number | null  (diferencia vs período anterior, opcional)
- *   color    — 'green' | 'red' | 'neutral' (por defecto neutral)
- *   loading  — boolean
+ * Tarjeta KPI de dashboard.
+ * Props: label, value, delta?, color ('green'|'red'|'neutral'), loading
  */
 export default function KpiCard({ label, value, delta, color = 'neutral', loading }) {
-  const colorMap = {
-    green:   'text-green-700',
-    red:     'text-red-700',
-    neutral: 'text-stone-900',
-  };
-
+  const valueClass = COLOR_CLASS[color] || COLOR_CLASS.neutral;
   const deltaPositive = delta > 0;
-  const deltaColor = delta == null ? '' : deltaPositive ? 'text-green-600' : 'text-red-600';
-  const deltaSign  = delta == null ? '' : deltaPositive ? '+' : '';
+  const deltaClass  = delta == null ? '' : deltaPositive ? 'text-green-600' : 'text-red-600';
+  const deltaSign   = delta == null ? '' : deltaPositive ? '+' : '';
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 px-5 py-4 flex flex-col gap-1">
-      <span className="text-xs font-medium text-stone-500 uppercase tracking-wide">{label}</span>
+    <div className="flex flex-col gap-2 rounded-xl bg-card ring-1 ring-border px-5 py-4">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {loading ? (
-        <div className="h-8 w-24 bg-stone-100 rounded animate-pulse mt-1" />
+        <Skeleton className="mt-1 h-8 w-24" />
       ) : (
-        <span className={`text-2xl font-bold tabular-nums ${colorMap[color]}`}>{fmt(value)}</span>
+        <span className={cn('text-2xl font-semibold tabular-nums tracking-tight', valueClass)}>
+          {fmt(value)}
+        </span>
       )}
       {delta != null && !loading && (
-        <span className={`text-xs ${deltaColor}`}>
+        <span className={cn('text-xs', deltaClass)}>
           {deltaSign}{fmt(Math.abs(delta))} vs mes anterior
         </span>
       )}

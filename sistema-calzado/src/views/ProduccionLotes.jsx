@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../api/supabase';
 import { jsPDF } from 'jspdf';
 import bwipjs from 'bwip-js';
+import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './finanzas/lib/materialCostos';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const SERIES = {
@@ -33,7 +34,6 @@ const PARES_X_SERIE = 12;
 const SERIE_ID_MAP  = { pequena: 1, mediana: 7, grande: 13, personalizado: null };
 const PRECIO_BASE   = { grande: 'precio_grande',          mediana: 'precio_mediana',          pequena: 'precio_chica'           };
 const PRECIO_ESP    = { grande: 'precio_especial_grande', mediana: 'precio_especial_mediana', pequena: 'precio_especial_chica'  };
-const COSTO_CAMPO   = { grande: 'costo_grande',           mediana: 'costo_mediana',           pequena: 'costo_chica'            };
 const FILTROS_LABEL = { hoy:'Hoy', semana:'Semana', mes:'Mes', todo:'Todo' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,8 +59,12 @@ const resolverPrecio = (serieKey, modelo, color) => {
   const base = modelo ? parseFloat(modelo[PRECIO_BASE[serieKey]]) || parseFloat(modelo.precio_venta_sugerido) || 0 : 0;
   return esp > 0 ? esp : base;
 };
-const resolverCosto = (serieKey, color) =>
-  color ? parseFloat(color[COSTO_CAMPO[serieKey]]) || 0 : 0;
+const resolverCosto = (serieKey, idProducto, idColor, costosIndex) =>
+  obtenerCostoMaterial(costosIndex, {
+    idProducto,
+    idColor,
+    serie: SERIES[serieKey]?.label,
+  });
 const fotoUrl = (path) => {
   try { return path ? `${supabase.supabaseUrl}/storage/v1/object/public/modelos-fotos/${path}` : null; }
   catch { return null; }
@@ -397,6 +401,7 @@ function CrearPanel({ usuario, productos, coloresModelo, setColoresModelo, onLot
   const [modalNuevoProd,  setModalNuevoProd]  = useState(false);
   const [nuevoProd,       setNuevoProd]       = useState({ marca:'', modelo:'', serie:'', precio:'', color:'' });
   const [guardandoProd,   setGuardandoProd]   = useState(false);
+  const [costosMateriales, setCostosMateriales] = useState([]);
 
   const cambiarSerie = (s) => {
     setForm(p => ({...p, serie:s}));
@@ -404,13 +409,18 @@ function CrearPanel({ usuario, productos, coloresModelo, setColoresModelo, onLot
   };
 
   useEffect(() => {
-    if (!form.id_producto) { setColoresModelo([]); return; }
-    supabase.from('colores_modelos')
-      .select('id_color, color, foto_url, costo_grande, costo_mediana, costo_chica, precio_especial_grande, precio_especial_mediana, precio_especial_chica')
-      .eq('id_producto', form.id_producto)
-      .eq('estado', 'Activo')
-      .order('color')
-      .then(({ data }) => setColoresModelo(data || []));
+    if (!form.id_producto) { setColoresModelo([]); setCostosMateriales([]); return; }
+    Promise.all([
+      supabase.from('colores_modelos')
+        .select('id_color, color, foto_url, precio_especial_grande, precio_especial_mediana, precio_especial_chica')
+        .eq('id_producto', form.id_producto)
+        .eq('estado', 'Activo')
+        .order('color'),
+      listarCostosMaterialesModelo({ idProducto: form.id_producto, soloActivos: true }),
+    ]).then(([coloresResp, costosResp]) => {
+      setColoresModelo(coloresResp.data || []);
+      setCostosMateriales(costosResp || []);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.id_producto]);
 
@@ -425,11 +435,12 @@ function CrearPanel({ usuario, productos, coloresModelo, setColoresModelo, onLot
   const colorSel   = coloresModelo.find(c => c.color === form.color);
   const marcaActual = modeloSel?.categorias;
   const marcaNombre = typeof marcaActual === 'object' ? marcaActual?.nombre_categoria : marcaActual || '';
+  const costosMaterialesIndex = useMemo(() => indexarCostosMateriales(costosMateriales), [costosMateriales]);
 
   const precioActual = form.id_producto && form.serie !== 'personalizado'
     ? resolverPrecio(form.serie, modeloSel, colorSel) : null;
-  const costoActual  = form.id_producto && form.serie !== 'personalizado'
-    ? resolverCosto(form.serie, colorSel) : 0;
+  const costoActual  = form.id_producto && form.serie !== 'personalizado' && colorSel
+    ? resolverCosto(form.serie, modeloSel?.id_producto, colorSel.id_color, costosMaterialesIndex) : 0;
   const margenActual = precioActual && costoActual > 0 ? precioActual - costoActual : null;
   const ndoc         = parseInt(form.docenas) || 0;
 
@@ -862,7 +873,9 @@ function CrearPanel({ usuario, productos, coloresModelo, setColoresModelo, onLot
           {seriesDisp.map(k => {
             const s = SERIES[k];
             const precio  = k !== 'personalizado' ? resolverPrecio(k, modeloSel, colorSel) : null;
-            const costo   = k !== 'personalizado' ? resolverCosto(k, colorSel)             : 0;
+            const costo   = k !== 'personalizado' && colorSel
+              ? resolverCosto(k, modeloSel?.id_producto, colorSel.id_color, costosMaterialesIndex)
+              : 0;
             const margen  = precio && costo > 0 ? precio - costo : null;
             const esEsp   = colorSel && colorSel[PRECIO_ESP[k]] > 0;
             return (

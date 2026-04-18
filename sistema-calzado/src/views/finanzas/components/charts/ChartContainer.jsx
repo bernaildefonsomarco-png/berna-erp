@@ -1,38 +1,30 @@
 import React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * Wrapper para cualquier gráfico Recharts.
- * Maneja los estados loading / empty / error de forma uniforme.
- *
- * Props:
- *   loading  — boolean
- *   empty    — boolean (datos vacíos pero sin error)
- *   error    — string | null
- *   label    — string (etiqueta para el empty state)
- *   children — el gráfico
+ * Wrapper para gráficos Recharts.
+ * Maneja estados loading / empty / error de forma uniforme.
  */
 export default function ChartContainer({ loading, empty, error, label, children }) {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[200px]">
-        <div className="w-6 h-6 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
-      </div>
-    );
+    return <Skeleton className="min-h-[200px] w-full rounded-lg" />;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-1">
-        <span className="text-sm text-red-600">Error al cargar datos</span>
-        <span className="text-xs text-stone-400">{error}</span>
+      <div className="flex min-h-[200px] flex-col items-center justify-center gap-1.5">
+        <span className="text-sm font-medium text-destructive">Error al cargar datos</span>
+        <span className="text-xs text-muted-foreground">{error}</span>
       </div>
     );
   }
 
   if (empty) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-1">
-        <span className="text-sm text-stone-400">Sin datos{label ? ` de ${label}` : ''} para el período</span>
+      <div className="flex min-h-[200px] flex-col items-center justify-center">
+        <span className="text-sm text-muted-foreground">
+          Sin datos{label ? ` de ${label}` : ''} para el período
+        </span>
       </div>
     );
   }

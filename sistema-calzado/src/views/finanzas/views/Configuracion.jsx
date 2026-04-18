@@ -137,7 +137,7 @@ export default function Configuracion({ usuario }) {
       />
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-[#991b1b]" style={{ fontWeight: 400 }}>
+        <div className="mb-4 p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] text-sm text-destructive" style={{ fontWeight: 400 }}>
           {error}
         </div>
       )}
@@ -145,8 +145,8 @@ export default function Configuracion({ usuario }) {
       <Card padding="md" className="mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-[15px] text-[#1c1917]" style={{ fontWeight: 600 }}>Personas del sistema</h2>
-            <p className="text-xs text-[#a8a29e] mt-0.5" style={{ fontWeight: 400 }}>
+            <h2 className="text-[15px] text-foreground" style={{ fontWeight: 600 }}>Personas del sistema</h2>
+            <p className="text-xs text-muted-foreground mt-0.5" style={{ fontWeight: 400 }}>
               Todas las personas registradas. Asigna acceso a Finanzas aquí.
             </p>
           </div>
@@ -162,9 +162,9 @@ export default function Configuracion({ usuario }) {
             description="Crea la primera persona para empezar."
           />
         ) : (
-          <div className="border border-[#e7e5e4] rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-[#fafaf9] text-[11px] text-[#a8a29e] uppercase tracking-wider">
+              <thead className="bg-muted/30 text-[11px] text-muted-foreground uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 text-left" style={{ fontWeight: 500 }}>Persona</th>
                   <th className="px-4 py-3 text-left" style={{ fontWeight: 500 }}>PIN</th>
@@ -176,17 +176,17 @@ export default function Configuracion({ usuario }) {
                 {personas.map(p => {
                   const perm = tieneFinanzas(p.id_persona);
                   return (
-                    <tr key={p.id_persona} className="border-t border-[#f5f5f4] hover:bg-[#fafaf9] transition-colors">
+                    <tr key={p.id_persona} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-[#f5f5f4] flex items-center justify-center text-[#57534e] text-xs" style={{ fontWeight: 500 }}>
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs" style={{ fontWeight: 500 }}>
                             {p.nombre.substring(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-[#1c1917]" style={{ fontWeight: 500 }}>{p.nombre}</span>
+                          <span className="text-foreground" style={{ fontWeight: 500 }}>{p.nombre}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[#57534e]" style={{ fontWeight: 400 }}>
-                        {(p.pin || p.pin_hash) ? <span className="font-mono text-xs">••••</span> : <span className="text-[#a8a29e]">Sin PIN</span>}
+                      <td className="px-4 py-3 text-muted-foreground" style={{ fontWeight: 400 }}>
+                        {(p.pin || p.pin_hash) ? <span className="font-mono text-xs">••••</span> : <span className="text-muted-foreground">Sin PIN</span>}
                       </td>
                       <td className="px-4 py-3">
                         {perm ? (
@@ -194,7 +194,7 @@ export default function Configuracion({ usuario }) {
                             {NIVELES.find(n => n.value === perm.nivel_acceso)?.label || perm.nivel_acceso}
                           </Badge>
                         ) : (
-                          <span className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>Sin acceso</span>
+                          <span className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>Sin acceso</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -295,7 +295,7 @@ function FormPersona({ onSubmit, onCancel, valoresIniciales }) {
         />
       </Field>
 
-      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-[#f5f5f4]">
+      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/50">
         <Button onClick={onCancel} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit} disabled={guardando}>
           {guardando ? <><Spinner size={14}/> Guardando...</> : 'Crear persona'}
@@ -327,13 +327,13 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
 
   return (
     <div>
-      <div className="flex items-center gap-3 pb-4 border-b border-[#f5f5f4]">
-        <div className="w-12 h-12 rounded-full bg-[#1c1917] flex items-center justify-center text-white text-sm" style={{ fontWeight: 600 }}>
+      <div className="flex items-center gap-3 pb-4 border-b border-border/50">
+        <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-sm" style={{ fontWeight: 600 }}>
           {persona.nombre.substring(0, 2).toUpperCase()}
         </div>
         <div>
-          <h3 className="text-[16px] text-[#1c1917]" style={{ fontWeight: 600 }}>{persona.nombre}</h3>
-          <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+          <h3 className="text-[16px] text-foreground" style={{ fontWeight: 600 }}>{persona.nombre}</h3>
+          <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
             {permisoActual ? (
               <>Acceso actual: <Badge color={NIVEL_BADGE_COLOR[permisoActual.nivel_acceso] || 'gray'} size="sm">{NIVELES.find(n => n.value === permisoActual.nivel_acceso)?.label}</Badge></>
             ) : (
@@ -343,7 +343,7 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
         </div>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-[#f5f5f4] mt-4">
+      <div className="flex items-center gap-1 border-b border-border/50 mt-4">
         {[
           { k: 'acceso', label: 'Acceso a Finanzas' },
           { k: 'pin',    label: 'PIN' },
@@ -353,8 +353,8 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
             onClick={() => setTab(t.k)}
             className={`px-3 py-2 text-sm transition-colors border-b-2 -mb-px ${
               tab === t.k
-                ? 'text-[#1c1917] border-[#1c1917]'
-                : 'text-[#a8a29e] border-transparent hover:text-[#57534e]'
+                ? 'text-foreground border-ring'
+                : 'text-muted-foreground border-transparent hover:text-muted-foreground'
             }`}
             style={{ fontWeight: tab === t.k ? 500 : 400 }}
           >
@@ -366,7 +366,7 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
       <div className="py-5">
         {tab === 'acceso' && (
           <div>
-            <p className="text-sm text-[#57534e] mb-4" style={{ fontWeight: 400 }}>
+            <p className="text-sm text-muted-foreground mb-4" style={{ fontWeight: 400 }}>
               Define qué puede hacer esta persona en el módulo de Finanzas.
             </p>
 
@@ -378,7 +378,7 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
               />
             </Field>
 
-            <div className="text-xs text-[#57534e] bg-[#fafaf9] rounded-lg p-3 mb-4" style={{ fontWeight: 400 }}>
+            <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-4" style={{ fontWeight: 400 }}>
               <p className="mb-1.5"><span style={{ fontWeight: 500 }}>Solo ver:</span> puede entrar y ver datos pero no modifica nada.</p>
               <p className="mb-1.5"><span style={{ fontWeight: 500 }}>Registrar:</span> puede agregar movimientos, pagos y transferencias.</p>
               <p className="mb-1.5"><span style={{ fontWeight: 500 }}>Editar:</span> puede modificar cuentas, deudas y costos existentes.</p>
@@ -409,7 +409,7 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
             </div>
 
             {esSelf && (
-              <p className="text-xs text-[#a8a29e] mt-3" style={{ fontWeight: 400 }}>
+              <p className="text-xs text-muted-foreground mt-3" style={{ fontWeight: 400 }}>
                 No puedes revocar tu propio acceso para evitar quedarte bloqueado.
               </p>
             )}
@@ -418,14 +418,14 @@ function DetallePersona({ persona, permisoActual, onActualizar, onAsignarPermiso
 
         {tab === 'pin' && (
           <div>
-            <p className="text-sm text-[#57534e] mb-4" style={{ fontWeight: 400 }}>
+            <p className="text-sm text-muted-foreground mb-4" style={{ fontWeight: 400 }}>
               PIN para entrar a la app. Si la persona tiene acceso a Finanzas, lo usará aquí también.
             </p>
 
             <Field label="PIN actual">
               <div className="flex items-center gap-2">
-                <div className="text-sm text-[#57534e]" style={{ fontWeight: 400 }}>
-                  {(persona.pin || persona.pin_hash) ? <span className="font-mono">••••</span> : <span className="text-[#a8a29e]">Sin PIN asignado</span>}
+                <div className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
+                  {(persona.pin || persona.pin_hash) ? <span className="font-mono">••••</span> : <span className="text-muted-foreground">Sin PIN asignado</span>}
                 </div>
               </div>
             </Field>

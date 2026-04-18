@@ -136,7 +136,7 @@ function MatCard({ m, mc, onUpdMM, onUpdMC, onDel }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
-export default function CatalogoCostos({ usuario }) {
+export default function CatalogoCostos({ usuario, deepLink }) {
   const [ld, sLd]           = useState(true);
   const [marcas, sMarcas]   = useState([]);
   const [prods, sProds]     = useState([]);
@@ -182,6 +182,26 @@ export default function CatalogoCostos({ usuario }) {
   const modelo   = useMemo(() => modSel ? prods.find(p => p.id_producto === modSel) : null, [modSel, prods]);
   const colsMod  = useMemo(() => modelo ? colores.filter(c => c.id_producto === modelo.id_producto) : [], [colores, modelo]);
   const colorObj = useMemo(() => colorModal ? colores.find(c => c.id_color === colorModal) : null, [colorModal, colores]);
+
+  useEffect(() => {
+    if (!deepLink?.modelo) return;
+    const modeloId = Number(deepLink.modelo);
+    if (!prods.some(p => p.id_producto === modeloId)) return;
+    sModSel(prev => prev === modeloId ? prev : modeloId);
+  }, [deepLink?.modelo, prods]);
+
+  useEffect(() => {
+    const serie = S.find(s => s.toLowerCase() === String(deepLink?.serie || '').toLowerCase());
+    if (!serie) return;
+    sSerieExp(prev => prev === serie ? prev : serie);
+  }, [deepLink?.serie]);
+
+  useEffect(() => {
+    if (!deepLink?.color || !colsMod.length) return;
+    const colorId = Number(deepLink.color);
+    if (!colsMod.some(c => c.id_color === colorId)) return;
+    sColorModal(prev => prev === colorId ? prev : colorId);
+  }, [deepLink?.color, colsMod]);
   const pf = useMemo(() => {
     let l = prods.filter(p => (p.estado||'Activo') === 'Activo');
     if (marcaSel !== 'all') l = l.filter(p => p.id_categoria === marcaSel);

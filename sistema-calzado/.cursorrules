@@ -1,3 +1,9 @@
-- Para las decisiones usa el archivo @supabase_schema.sql como fuente de verdad para la estructura de las tablas, ahi esta mi bd actual, pero segun vayamos modificando actualiza esta parte tambien para que mas adelante no haya confusiones, es decir, Si durante nuestra sesión creamos nuevas tablas o modificamos columnas, tu primera tarea es actualizar el archivo @supabase_schema.sql para reflejar esos cambios..
-- Puedes usar el cliente de Supabase definido en @supabaseClient.js (o el archivo donde lo tengas).
-- Recuerda que las tablas usan 'snake_case' (ej: id_venta) y en React usamos 'camelCase' para variables.
+- Para las decisiones usa el archivo @supabase_schema.sql como fuente de verdad para la estructura de las tablas. Si durante nuestra sesión creamos nuevas tablas o modificamos columnas, actualiza @supabase_schema.sql para reflejar esos cambios antes de escribir código.
+- Usa el cliente de Supabase definido en `src/api/supabase.js` (NO buscar `supabaseClient.js` — ese path no existe).
+- Las tablas usan `snake_case` (ej: `id_venta`) y en React usamos `camelCase` para variables y props.
+- Si detectas que un cambio en el código choca con la lógica de negocio en `docs/business_logic.md`, detente y pregunta. Si el cambio procede, actualiza `docs/business_logic.md` para que se mantenga sincronizado.
+- Cada vez que termines una tarea significativa, actualiza `CLAUDE.md` (arquitectura) y `docs/business_logic.md` (lógica de negocio) para mantener el contexto actualizado para futuros agentes.
+- Lee siempre `CLAUDE.md` para entender la arquitectura y `docs/business_logic.md` para entender el negocio antes de hacer cambios en módulos existentes.
+- IMPORTANTE: `ubicaciones` NO tiene columna `created_at`. No la uses en queries sobre esa tabla.
+- El módulo Finanzas usa shadcn/ui + Tailwind semántico. EstadoResultados tiene su propio tema CSS inline (ER_STYLES). No mezclar estilos.
+- Actualizar siempre el supabase_schema.sql para reflejar los cambios, cada vez que crees una nueva tabla o modificas una columna o se modifica algo en la base de datos.

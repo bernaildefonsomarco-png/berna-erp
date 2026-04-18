@@ -89,14 +89,14 @@ export default function AjustesFinanzas({ usuario }) {
       />
 
       <Card padding="md" className="mb-4">
-        <h2 className="text-[15px] text-[#1c1917] mb-2" style={{ fontWeight: 600 }}>Ritual y reglas (texto libre)</h2>
-        <p className="text-xs text-[#a8a29e] mb-3">
+        <h2 className="text-[15px] text-foreground mb-2" style={{ fontWeight: 600 }}>Ritual y reglas (texto libre)</h2>
+        <p className="text-xs text-muted-foreground mb-3">
           Copia o resume lo acordado en familia (quién cierra caja, cómo se entrega efectivo, etc.). También existe la plantilla en{' '}
-          <code className="text-[11px] bg-[#f5f5f4] px-1 rounded">docs/finanzas-catalogo-y-ritual.md</code>.
+          <code className="text-[11px] bg-muted px-1 rounded">docs/finanzas-catalogo-y-ritual.md</code>.
         </p>
         <Field label="Contenido visible para el equipo (opcional)">
           <textarea
-            className="w-full min-h-[140px] rounded-lg border border-[#e7e5e4] p-3 text-sm text-[#1c1917] focus:outline-none focus:ring-1 focus:ring-[#1c1917]"
+            className="w-full min-h-[140px] rounded-lg border border-border p-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-[#1c1917]"
             value={ritual}
             onChange={e => setRitual(e.target.value)}
             placeholder="Ej.: Los lunes papá junta efectivo de CAJA_PROD + BCP antes del pedido..."
@@ -105,27 +105,27 @@ export default function AjustesFinanzas({ usuario }) {
       </Card>
 
       <Card padding="md" className="mb-4">
-        <h2 className="text-[15px] text-[#1c1917] mb-2" style={{ fontWeight: 600 }}>Cuentas para “liquidez lunes”</h2>
-        <p className="text-xs text-[#a8a29e] mb-3">
+        <h2 className="text-[15px] text-foreground mb-2" style={{ fontWeight: 600 }}>Cuentas para “liquidez lunes”</h2>
+        <p className="text-xs text-muted-foreground mb-3">
           Marca las cuentas financieras cuyo saldo debe sumarse en el widget del Dashboard (capital disponible para compra de materiales).
         </p>
-        <div className="max-h-56 overflow-y-auto border border-[#e7e5e4] rounded-lg divide-y divide-[#f5f5f4]">
+        <div className="max-h-56 overflow-y-auto border border-border rounded-lg divide-y divide-[#f5f5f4]">
           {cuentas.map(c => (
-            <label key={c.id_cuenta} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#fafaf9]">
+            <label key={c.id_cuenta} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30">
               <input
                 type="checkbox"
                 checked={idsLiquidez.includes(c.id_cuenta)}
                 onChange={() => toggleCuentaLiquidez(c.id_cuenta)}
               />
-              <span className="text-sm text-[#1c1917] flex-1" style={{ fontWeight: 500 }}>{c.nombre}</span>
-              <span className="text-xs text-[#a8a29e]">{c.codigo}</span>
+              <span className="text-sm text-foreground flex-1" style={{ fontWeight: 500 }}>{c.nombre}</span>
+              <span className="text-xs text-muted-foreground">{c.codigo}</span>
             </label>
           ))}
         </div>
       </Card>
 
       {msg && (
-        <p className={`text-sm mb-3 ${msg.includes('Error') ? 'text-[#991b1b]' : 'text-[#059669]'}`}>{msg}</p>
+        <p className={`text-sm mb-3 ${msg.includes('Error') ? 'text-destructive' : 'text-[#059669]'}`}>{msg}</p>
       )}
 
       <Button variant="primary" onClick={guardar} disabled={guardando}>

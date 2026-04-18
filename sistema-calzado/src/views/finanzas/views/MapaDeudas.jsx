@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   formatMoney, formatPercent,
   calcularProximoVencimiento,
@@ -89,11 +89,11 @@ export default function MapaDeudas({ deudas, cuentas, onClose, onAbrirDeuda, onP
     return (
       <FullScreenModal onClose={onClose} title="Mapa de deudas">
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-16 h-16 rounded-full bg-[#dcfce7] flex items-center justify-center mb-4">
-            <Icon d={ICONS.check} size={28} className="text-[#166534]" />
+          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+            <Icon d={ICONS.check} size={28} className="text-green-700" />
           </div>
-          <p className="text-lg text-[#1c1917]" style={{ fontWeight: 600 }}>Sin deudas activas</p>
-          <p className="text-sm text-[#57534e] mt-2 max-w-sm text-center" style={{ fontWeight: 400 }}>
+          <p className="text-lg text-foreground" style={{ fontWeight: 600 }}>Sin deudas activas</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm text-center" style={{ fontWeight: 400 }}>
             Cuando tengas deudas activas, este mapa te mostrará un análisis completo con recomendaciones estratégicas.
           </p>
         </div>
@@ -125,11 +125,228 @@ export default function MapaDeudas({ deudas, cuentas, onClose, onAbrirDeuda, onP
         <SectionCalendario vencimientos={vencimientosMes} onAbrirDeuda={onAbrirDeuda} />
 
         {/* ═══════════════════════════════════════════════════════════════
+            GANTT — Timeline de vida restante por deuda
+            ═══════════════════════════════════════════════════════════════ */}
+        <SectionGantt deudas={ordenadasPorTCEA} />
+
+        {/* ═══════════════════════════════════════════════════════════════
+            SIMULADOR — ¿Y si pago extra?
+            ═══════════════════════════════════════════════════════════════ */}
+        <SectionSimulador deudas={activas} disponible={disponibleOperativo} />
+
+        {/* ═══════════════════════════════════════════════════════════════
             CAPA 4 — ESTRATEGIA: recomendaciones
             ═══════════════════════════════════════════════════════════════ */}
         <SectionRecomendaciones recomendaciones={recomendaciones} onAbrirDeuda={onAbrirDeuda} />
       </div>
     </FullScreenModal>
+  );
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GANTT — Timeline de vida restante
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function SectionGantt({ deudas }) {
+  if (!deudas || deudas.length === 0) return null;
+
+  // Para cada deuda: calcular meses restantes aproximados
+  const hoy = new Date();
+  const items = deudas.map(d => {
+    const saldo = Number(d.saldo_actual) || 0;
+    const cuota = Number(d.cuota_monto) || 0;
+    const tasa = Number(d.tasa_interes_mensual) || 0;
+
+    let mesesRestantes;
+    if (d.fecha_fin) {
+      const fin = new Date(d.fecha_fin);
+      mesesRestantes = Math.max(0, Math.round((fin - hoy) / (1000 * 60 * 60 * 24 * 30.4)));
+    } else if (cuota > 0 && saldo > 0) {
+      if (tasa > 0) {
+        mesesRestantes = Math.ceil(Math.log(cuota / (cuota - saldo * tasa)) / Math.log(1 + tasa));
+      } else {
+        mesesRestantes = Math.ceil(saldo / cuota);
+      }
+      mesesRestantes = Math.max(1, Math.min(mesesRestantes, 120));
+    } else {
+      mesesRestantes = 12; // fallback
+    }
+
+    return { ...d, mesesRestantes };
+  }).filter(d => d.mesesRestantes > 0);
+
+  const maxMeses = Math.max(...items.map(d => d.mesesRestantes), 1);
+
+  const COLORES = ['#b91c1c', '#d97706', '#0369a1', '#7c3aed', '#059669', '#0891b2'];
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>Timeline de deudas</h2>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>Vida restante estimada por deuda</p>
+      </div>
+      <Card padding="md">
+        <div className="space-y-3">
+          {items.map((d, i) => {
+            const pct = (d.mesesRestantes / maxMeses) * 100;
+            const color = COLORES[i % COLORES.length];
+            const años = Math.floor(d.mesesRestantes / 12);
+            const mesesR = d.mesesRestantes % 12;
+            const label = años > 0
+              ? `${años}a ${mesesR > 0 ? mesesR + 'm' : ''}`
+              : `${d.mesesRestantes}m`;
+
+            return (
+              <div key={d.id_deuda}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-foreground" style={{ fontWeight: 500 }}>{d.nombre}</span>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
+                    <span>{formatMoney(d.saldo_actual)}</span>
+                    <span className="text-muted-foreground">{label} restante{d.mesesRestantes !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+                <div className="h-4 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${pct}%`, backgroundColor: color, minWidth: 8 }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between mt-3 text-[10px] text-muted-foreground" style={{ fontWeight: 400 }}>
+          <span>Hoy</span>
+          <span>{Math.floor(maxMeses / 12) > 0 ? `~${Math.floor(maxMeses / 12)}a ${maxMeses % 12}m` : `${maxMeses}m`}</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SIMULADOR — ¿Y si pago extra?
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function SectionSimulador({ deudas, disponible }) {
+  const [deudaId, setDeudaId] = useState(deudas[0]?.id_deuda || null);
+  const [pagoExtra, setPagoExtra] = useState(200);
+
+  const deudaSeleccionada = deudas.find(d => d.id_deuda === deudaId);
+  const maxSlider = Math.min(Math.max(disponible * 0.3, 500), 5000);
+
+  const simulacion = useMemo(() => {
+    if (!deudaSeleccionada || pagoExtra <= 0) return null;
+    return simularPagoExtra(deudaSeleccionada, pagoExtra);
+  }, [deudaSeleccionada, pagoExtra]);
+
+  if (deudas.length === 0) return null;
+
+  const deudaSinSim = deudaSeleccionada ? costoTotalRestante(deudaSeleccionada) : null;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>Simulador de payoff</h2>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>¿Cuánto ahorras pagando más cada mes?</p>
+      </div>
+
+      <Card padding="md">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Controles */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2" style={{ fontWeight: 500 }}>
+                Deuda a simular
+              </label>
+              <select
+                value={deudaId || ''}
+                onChange={e => setDeudaId(Number(e.target.value))}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus-visible:border-ring"
+              >
+                {deudas.map(d => (
+                  <option key={d.id_deuda} value={d.id_deuda}>
+                    {d.nombre} — {formatMoney(d.saldo_actual)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2" style={{ fontWeight: 500 }}>
+                Pago extra mensual: <span className="text-foreground text-sm">{formatMoney(pagoExtra)}</span>
+              </label>
+              <input
+                type="range"
+                min={50}
+                max={Math.round(maxSlider)}
+                step={50}
+                value={pagoExtra}
+                onChange={e => setPagoExtra(Number(e.target.value))}
+                className="w-full accent-[#1c1917]"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
+                <span>S/ 50</span>
+                <span>{formatMoney(Math.round(maxSlider))}</span>
+              </div>
+            </div>
+
+            {deudaSeleccionada && (
+              <div className="text-xs text-muted-foreground space-y-1" style={{ fontWeight: 400 }}>
+                <p>Cuota actual: <span style={{ fontWeight: 500 }}>{formatMoney(deudaSeleccionada.cuota_monto)}</span></p>
+                <p>Con pago extra: <span style={{ fontWeight: 500 }}>{formatMoney(Number(deudaSeleccionada.cuota_monto) + pagoExtra)}</span></p>
+              </div>
+            )}
+          </div>
+
+          {/* Resultados */}
+          <div>
+            {simulacion && simulacion.meses_ahorrados > 0 ? (
+              <div className="space-y-3">
+                <div className="p-4 rounded-xl bg-green-50 border border-green-300">
+                  <p className="text-[10px] text-green-700 uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Meses ahorrados</p>
+                  <p className="text-3xl text-green-700 fin-num" style={{ fontWeight: 700 }}>
+                    {simulacion.meses_ahorrados}
+                  </p>
+                  <p className="text-xs text-green-700 mt-1" style={{ fontWeight: 400 }}>
+                    {simulacion.meses_originales}m → {simulacion.meses_acelerados}m
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-300">
+                  <p className="text-[10px] text-blue-700 uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Intereses ahorrados</p>
+                  <p className="text-2xl text-blue-700 fin-num" style={{ fontWeight: 700 }}>
+                    {formatMoney(simulacion.intereses_ahorrados)}
+                  </p>
+                  {simulacion.nueva_fecha_fin && (
+                    <p className="text-xs text-blue-700 mt-1" style={{ fontWeight: 400 }}>
+                      Liquidación: {new Date(simulacion.nueva_fecha_fin).toLocaleDateString('es-PE', { month: 'short', year: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+                {deudaSinSim && (
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" style={{ fontWeight: 500 }}>Total a pagar sin extra</p>
+                    <p className="text-sm text-muted-foreground fin-num" style={{ fontWeight: 500 }}>{formatMoney(deudaSinSim.total)}</p>
+                  </div>
+                )}
+              </div>
+            ) : simulacion && simulacion.meses_ahorrados === 0 ? (
+              <div className="p-4 rounded-xl bg-muted/30 border border-border flex items-center gap-3">
+                <p className="text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
+                  El pago extra no reduce el tiempo significativamente con esta deuda (puede que sea una deuda corta o sin cuotas fijas).
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground" style={{ fontWeight: 400 }}>
+                Selecciona una deuda y ajusta el slider para ver la simulación
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -144,15 +361,15 @@ function FullScreenModal({ children, title, onClose }) {
       className="fixed inset-0 z-50 flex flex-col"
       style={{ backgroundColor: 'rgba(28, 25, 23, 0.5)' }}
     >
-      <div className="flex-1 overflow-hidden flex flex-col bg-[#fafaf9] m-0 sm:m-4 rounded-none sm:rounded-2xl border border-[#e7e5e4]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e7e5e4] bg-white">
+      <div className="flex-1 overflow-hidden flex flex-col bg-muted/30 m-0 sm:m-4 rounded-none sm:rounded-xl border border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
           <div>
-            <p className="text-[10px] tracking-[0.2em] uppercase text-[#a8a29e]" style={{ fontWeight: 500 }}>Análisis financiero</p>
-            <h1 className="text-xl text-[#1c1917]" style={{ fontWeight: 600, letterSpacing: '-0.02em' }}>{title}</h1>
+            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground" style={{ fontWeight: 500 }}>Análisis financiero</p>
+            <h1 className="text-xl text-foreground" style={{ fontWeight: 600, letterSpacing: '-0.02em' }}>{title}</h1>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#f5f5f4] text-[#a8a29e] hover:text-[#1c1917] transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <Icon d={ICONS.x} size={18} />
           </button>
@@ -180,10 +397,10 @@ function SectionCostoReal({ metricas, disponibleOperativo }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-base text-[#1c1917]" style={{ fontWeight: 600 }}>
+        <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>
           Costo real
         </h2>
-        <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
           La verdad completa de lo que cuestan tus deudas
         </p>
       </div>
@@ -218,16 +435,16 @@ function SectionCostoReal({ metricas, disponibleOperativo }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
         <Card padding="md">
-          <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
             TCEA promedio ponderada
           </p>
           <div className="flex items-baseline gap-2">
-            <p className="text-2xl text-[#1c1917] fin-num" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
+            <p className="text-2xl text-foreground fin-num" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
               {formatPercent(metricas.tceaPromedio, { decimals: 2 })}
             </p>
-            <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>anual</p>
+            <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>anual</p>
           </div>
-          <p className="text-xs text-[#57534e] mt-2" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground mt-2" style={{ fontWeight: 400 }}>
             {metricas.tceaPromedio >= 0.30
               ? 'Tu costo financiero promedio es alto. Considera refinanciar las deudas más caras.'
               : metricas.tceaPromedio >= 0.15
@@ -237,20 +454,20 @@ function SectionCostoReal({ metricas, disponibleOperativo }) {
         </Card>
 
         <Card padding="md">
-          <p className="text-[11px] text-[#a8a29e] uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2" style={{ fontWeight: 500 }}>
             Cobertura disponible
           </p>
           <div className="flex items-baseline gap-2">
-            <p className="text-2xl text-[#1c1917] fin-num" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
+            <p className="text-2xl text-foreground fin-num" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
               {ratioDeuda != null
                 ? `${(ratioDeuda).toFixed(1)}×`
                 : '—'}
             </p>
-            <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+            <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
               ({formatMoney(disponibleOperativo)} disponible)
             </p>
           </div>
-          <p className="text-xs text-[#57534e] mt-2" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground mt-2" style={{ fontWeight: 400 }}>
             {ratioDeuda == null
               ? 'Sin cuentas operativas con saldo positivo.'
               : ratioDeuda <= 1
@@ -277,10 +494,10 @@ function SectionStock({ deudas, totalSaldo, onAbrirDeuda, onPagarDeuda }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-base text-[#1c1917]" style={{ fontWeight: 600 }}>
+        <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>
           Deudas por costo (TCEA descendente)
         </h2>
-        <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
           La más cara primero. Ataca de arriba hacia abajo.
         </p>
       </div>
@@ -305,18 +522,18 @@ function SectionStock({ deudas, totalSaldo, onAbrirDeuda, onPagarDeuda }) {
             return (
               <div
                 key={d.id_deuda}
-                className="group cursor-pointer hover:bg-[#fafaf9] -mx-2 px-2 py-2 rounded-lg transition-colors"
+                className="group cursor-pointer hover:bg-muted/30 -mx-2 px-2 py-2 rounded-lg transition-colors"
                 onClick={() => onAbrirDeuda?.(d)}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] text-[#a8a29e] fin-num w-5" style={{ fontWeight: 500 }}>
+                    <span className="text-[11px] text-muted-foreground fin-num w-5" style={{ fontWeight: 500 }}>
                       #{idx + 1}
                     </span>
-                    <p className="text-sm text-[#1c1917] truncate" style={{ fontWeight: 500 }}>
+                    <p className="text-sm text-foreground truncate" style={{ fontWeight: 500 }}>
                       {d.nombre}
                     </p>
-                    <span className="text-[11px] text-[#a8a29e] truncate" style={{ fontWeight: 400 }}>
+                    <span className="text-[11px] text-muted-foreground truncate" style={{ fontWeight: 400 }}>
                       · {d.acreedor}
                     </span>
                   </div>
@@ -327,16 +544,16 @@ function SectionStock({ deudas, totalSaldo, onAbrirDeuda, onPagarDeuda }) {
                     >
                       TCEA {formatPercent(tcea, { decimals: 1 })}
                     </span>
-                    <span className="text-sm text-[#1c1917] fin-num" style={{ fontWeight: 600 }}>
+                    <span className="text-sm text-foreground fin-num" style={{ fontWeight: 600 }}>
                       {formatMoney(saldo)}
                     </span>
                   </div>
                 </div>
 
                 {/* Barra de progreso compuesta: pagado + pendiente */}
-                <div className="relative h-2 bg-[#f5f5f4] rounded-full overflow-hidden" style={{ width: `${Math.max(8, widthPct)}%`, minWidth: '60px' }}>
+                <div className="relative h-2 bg-muted rounded-full overflow-hidden" style={{ width: `${Math.max(8, widthPct)}%`, minWidth: '60px' }}>
                   <div
-                    className="absolute inset-y-0 left-0 bg-[#1c1917] opacity-20"
+                    className="absolute inset-y-0 left-0 bg-primary opacity-20"
                     style={{ width: '100%' }}
                   />
                   <div
@@ -349,7 +566,7 @@ function SectionStock({ deudas, totalSaldo, onAbrirDeuda, onPagarDeuda }) {
                 </div>
 
                 <div className="flex items-center justify-between mt-1.5">
-                  <p className="text-[11px] text-[#a8a29e]" style={{ fontWeight: 400 }}>
+                  <p className="text-[11px] text-muted-foreground" style={{ fontWeight: 400 }}>
                     Pagado {formatMoney(pagado)} de {formatMoney(original)} ({formatPercent(pctPagado, { decimals: 0 })})
                     {' · cuota '}{formatMoney(d.cuota_monto)}
                     {' · costo '}<span className="fin-num">{formatMoney(costoFinancieroDiario(d))}/día</span>
@@ -357,7 +574,7 @@ function SectionStock({ deudas, totalSaldo, onAbrirDeuda, onPagarDeuda }) {
                   {onPagarDeuda && (
                     <button
                       onClick={e => { e.stopPropagation(); onPagarDeuda(d); }}
-                      className="text-[11px] px-2 py-1 rounded bg-[#1c1917] text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-[11px] px-2 py-1 rounded bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ fontWeight: 500 }}
                     >
                       Pagar
@@ -425,22 +642,22 @@ function SectionCalendario({ vencimientos, onAbrirDeuda }) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-base text-[#1c1917]" style={{ fontWeight: 600 }}>
+          <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>
             Calendario de vencimientos
           </h2>
-          <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+          <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
             {nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)}
           </p>
         </div>
-        <p className="text-xs text-[#57534e]" style={{ fontWeight: 500 }}>
-          Total del mes: <span className="fin-num text-[#1c1917]" style={{ fontWeight: 600 }}>{formatMoney(totalMes)}</span>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 500 }}>
+          Total del mes: <span className="fin-num text-foreground" style={{ fontWeight: 600 }}>{formatMoney(totalMes)}</span>
         </p>
       </div>
 
       <Card padding="md">
         <div className="grid grid-cols-7 gap-1.5">
           {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(d => (
-            <div key={d} className="text-center text-[10px] text-[#a8a29e] uppercase tracking-wider py-1" style={{ fontWeight: 500 }}>
+            <div key={d} className="text-center text-[10px] text-muted-foreground uppercase tracking-wider py-1" style={{ fontWeight: 500 }}>
               {d}
             </div>
           ))}
@@ -496,19 +713,19 @@ function SectionCalendario({ vencimientos, onAbrirDeuda }) {
         <div className="flex items-center gap-3 mt-4 text-[11px]" style={{ fontWeight: 400 }}>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5' }} />
-            <span className="text-[#a8a29e]">Próx. 3 días</span>
+            <span className="text-muted-foreground">Próx. 3 días</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a' }} />
-            <span className="text-[#a8a29e]">Próx. 10 días</span>
+            <span className="text-muted-foreground">Próx. 10 días</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac' }} />
-            <span className="text-[#a8a29e]">Más adelante</span>
+            <span className="text-muted-foreground">Más adelante</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#1c1917]" />
-            <span className="text-[#a8a29e]">Hoy</span>
+            <span className="w-2.5 h-2.5 rounded-sm bg-primary" />
+            <span className="text-muted-foreground">Hoy</span>
           </span>
         </div>
       </Card>
@@ -642,10 +859,10 @@ function SectionRecomendaciones({ recomendaciones, onAbrirDeuda }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-base text-[#1c1917]" style={{ fontWeight: 600 }}>
+        <h2 className="text-base text-foreground" style={{ fontWeight: 600 }}>
           Recomendaciones estratégicas
         </h2>
-        <p className="text-xs text-[#a8a29e]" style={{ fontWeight: 400 }}>
+        <p className="text-xs text-muted-foreground" style={{ fontWeight: 400 }}>
           Calculadas automáticamente con tus datos
         </p>
       </div>
@@ -685,7 +902,7 @@ function RecomendacionCard({ rec, onAbrirDeuda }) {
         {rec.deuda && onAbrirDeuda && (
           <button
             onClick={() => onAbrirDeuda(rec.deuda)}
-            className="mt-2 text-[11px] px-2 py-1 rounded bg-white border hover:bg-[#fafaf9] transition-colors"
+            className="mt-2 text-[11px] px-2 py-1 rounded bg-card border hover:bg-muted/30 transition-colors"
             style={{ fontWeight: 500, color: c.text, borderColor: c.border }}
           >
             Ver {rec.deuda.nombre} →
