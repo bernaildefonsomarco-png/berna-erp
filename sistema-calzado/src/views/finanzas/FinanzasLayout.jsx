@@ -19,6 +19,7 @@ const HubUbicacion  = lazy(() => import('./views/HubUbicacion'));
 const CierresPeriodo = lazy(() => import('./views/CierresPeriodo'));
 const CierreWizard   = lazy(() => import('./views/cierres/CierreWizard'));
 const CatalogoAdmin  = lazy(() => import('./views/admin/CatalogoAdmin'));
+const EstructuraFinanciera = lazy(() => import('./views/EstructuraFinanciera'));
 
 /* ──────────────────────────────────────────────────────────────────────────
    FinanzasLayout
@@ -54,6 +55,7 @@ const NAV_ITEMS = [
   { path: '/finanzas/cuentas',           label: 'Cuentas',           icon: ICONS.bank,      recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/deudas',            label: 'Deudas',            icon: ICONS.coins,     recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/trabajadores',      label: 'Trabajadores',      icon: ICONS.users,     recurso: RECURSOS.FINANZAS },
+  { path: '/finanzas/estructura-financiera', label: 'Estructura financ.', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m-1 4h1m-1 4h1m4-8h1m-1 4h1m-1 4h1', recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/movimientos',       label: 'Movimientos',       icon: ICONS.exchange,  recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/transferencias',    label: 'Transferencias',    icon: ICONS.refresh,   recurso: RECURSOS.FINANZAS },
   { path: '/finanzas/plan-cuentas',      label: 'Plan de cuentas',   icon: ICONS.trending,  recurso: RECURSOS.FINANZAS },
@@ -256,7 +258,9 @@ export default function FinanzasLayout({ usuario, logout }) {
               <Route path="dashboard"         element={<Dashboard      usuario={usuario} />} />
               <Route path="cuentas"           element={<Cuentas        usuario={usuario} />} />
               <Route path="deudas"            element={<Deudas         usuario={usuario} />} />
-              <Route path="costos"            element={<Navigate to="/finanzas/trabajadores" replace />} />
+              <Route path="estructura-financiera" element={<EstructuraFinanciera usuario={usuario} />} />
+              <Route path="costos"            element={<Navigate to="/finanzas/estructura-financiera" replace />} />
+              <Route path="costos-fijos"      element={<Navigate to="/finanzas/estructura-financiera" replace />} />
               <Route path="trabajadores"      element={<Trabajadores   usuario={usuario} />} />
               <Route path="movimientos"       element={<Movimientos    usuario={usuario} />} />
               <Route path="transferencias"    element={<Transferencias usuario={usuario} />} />

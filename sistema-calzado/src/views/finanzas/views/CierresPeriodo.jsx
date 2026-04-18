@@ -5,7 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   obtenerPeriodos, descargarPdfCierre, reabrirPeriodo,
 } from '../api/cierresClient';
-import { verifyPersonaPin } from '../../../lib/pinAuth';
+import { verificarPin } from '../../../lib/pinAuth';
 import { puedeCerrar, puedeReabrir, puedeVerCierres } from '../lib/permisos';
 import { LoadingState, PageHeader } from '../components/UI';
 
@@ -24,7 +24,7 @@ function ModalReabrir({ periodo, usuario, onClose, onExito }) {
     if (!pin || pin.length < 4) { setError('PIN inválido.'); return; }
     setGuardando(true);
     try {
-      const pinValido = await verifyPersonaPin({ pin_hash: usuario.pin_hash }, pin);
+      const pinValido = await verificarPin(usuario.id_persona, pin);
       if (!pinValido) throw new Error('PIN incorrecto.');
       await reabrirPeriodo({ idPeriodo: periodo.id_periodo, motivo, idPersona: usuario.id_persona });
       onExito();
