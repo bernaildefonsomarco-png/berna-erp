@@ -634,18 +634,8 @@ CREATE TABLE public.vistas_guardadas (
 -- ============================================================================
 
 -- ── 20260418_01_catalogos_auxiliares.sql ────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS public.catalogos_auxiliares (
-  id_catalogo serial PRIMARY KEY,
-  codigo text NOT NULL,
-  nombre text NOT NULL,
-  items jsonb NOT NULL DEFAULT '[]'::jsonb,
-  activo boolean NOT NULL DEFAULT true,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_catalogos_auxiliares_codigo_ci
-  ON public.catalogos_auxiliares (lower(codigo));
+-- catalogos_auxiliares: ELIMINADA en Fase 2 (ADR-002). Reemplazada por tablas dedicadas.
+-- Ver migraciones 20260420_01 (catálogos) y 20260420_06 (DROP).
 
 CREATE TABLE IF NOT EXISTS public.roles_persona (
   id_rol serial PRIMARY KEY,
@@ -918,3 +908,239 @@ CREATE TABLE IF NOT EXISTS public.cierres_periodo (
 -- ── 20260419_06_v_cierres_integridad.sql ─────────────────────────────────
 -- Vista v_cierres_integridad: detecta cadena de hashes rota entre versiones
 -- + seed de permisos: finanzas:admin → cierres:admin, finanzas:ver/registrar/editar → cierres:ver
+
+-- ============================================================================
+-- ── FASE 2 REDISEÑO GESTIÓN EMPRESARIAL ────────────────────────────────────
+-- Migrations: 20260420_01 through 20260420_07
+-- ============================================================================
+
+-- ── 20260420_01_catalogos_dedicados.sql ────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.metodos_pago (
+    id_metodo            serial PRIMARY KEY,
+    codigo               text NOT NULL UNIQUE,
+    nombre               text NOT NULL,
+    tipo                 text NOT NULL CHECK (tipo IN ('efectivo','digital','tarjeta','transferencia','cheque','otro')),
+    requiere_referencia  boolean NOT NULL DEFAULT false,
+    activo               boolean NOT NULL DEFAULT true,
+    orden                integer NOT NULL DEFAULT 100,
+    created_at           timestamptz NOT NULL DEFAULT now(),
+    updated_at           timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.areas (
+    id_area      serial PRIMARY KEY,
+    codigo       text NOT NULL UNIQUE,
+    nombre       text NOT NULL,
+    activo       boolean NOT NULL DEFAULT true,
+    orden        integer NOT NULL DEFAULT 100,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.cargos (
+    id_cargo                  serial PRIMARY KEY,
+    codigo                    text NOT NULL UNIQUE,
+    nombre                    text NOT NULL,
+    id_area_default           integer REFERENCES public.areas(id_area),
+    salario_sugerido          numeric(12,2),
+    id_cuenta_contable_sueldo integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+    activo                    boolean NOT NULL DEFAULT true,
+    orden                     integer NOT NULL DEFAULT 100,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.motivos_merma (
+    id_motivo    serial PRIMARY KEY,
+    codigo       text NOT NULL UNIQUE,
+    nombre       text NOT NULL,
+    activo       boolean NOT NULL DEFAULT true,
+    orden        integer NOT NULL DEFAULT 100,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.motivos_ajuste (
+    id_motivo    serial PRIMARY KEY,
+    codigo       text NOT NULL UNIQUE,
+    nombre       text NOT NULL,
+    activo       boolean NOT NULL DEFAULT true,
+    orden        integer NOT NULL DEFAULT 100,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.motivos_devolucion (
+    id_motivo    serial PRIMARY KEY,
+    codigo       text NOT NULL UNIQUE,
+    nombre       text NOT NULL,
+    activo       boolean NOT NULL DEFAULT true,
+    orden        integer NOT NULL DEFAULT 100,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.condiciones_pago (
+    id_condicion  serial PRIMARY KEY,
+    codigo        text NOT NULL UNIQUE,
+    nombre        text NOT NULL,
+    dias_credito  integer NOT NULL DEFAULT 0,
+    activo        boolean NOT NULL DEFAULT true,
+    orden         integer NOT NULL DEFAULT 100,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- ── 20260420_02_personas_cargo_area_fks.sql ────────────────────────────────
+-- ALTER TABLE personas_tienda ADD id_cargo integer FK → cargos, id_area integer FK → areas
+-- Columnas text 'cargo' y 'area' marcadas DEPRECATED (mantenidas para retrocompatibilidad)
+
+-- ── 20260420_03_reglas_mapeo_sugerido.sql ──────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.reglas_mapeo_sugerido (
+    id_regla                    serial PRIMARY KEY,
+    categoria_macro             text NOT NULL CHECK (categoria_macro IN (
+        'ingreso','gasto_operativo','pago_personas','inversion',
+        'traslado','pago_deuda','compra_material'
+    )),
+    ubicacion_rol               text NOT NULL CHECK (ubicacion_rol IN ('*','Tienda','Fabrica','Administracion')),
+    id_cuenta_contable_sugerida integer NOT NULL REFERENCES public.plan_cuentas(id_cuenta_contable),
+    prioridad                   integer NOT NULL DEFAULT 100,
+    activa                      boolean NOT NULL DEFAULT true,
+    created_at                  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (categoria_macro, ubicacion_rol)
+);
+
+-- fn_sugerir_cuenta_para_tipo(categoria_macro, ubicacion_rol) → integer
+-- Busca regla por (categoria, rol) con fallback a wildcard '*'
+
+-- ── 20260420_04_obligaciones_recurrentes.sql ───────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.obligaciones_recurrentes (
+    id_obligacion             serial PRIMARY KEY,
+    codigo                    text NOT NULL UNIQUE,
+    nombre                    text NOT NULL,
+    emoji                     text,
+    id_tipo                   integer REFERENCES public.tipos_movimiento_caja(id_tipo),
+    id_ubicacion              integer REFERENCES public.ubicaciones(id_ubicacion),
+    id_cuenta_origen          integer REFERENCES public.cuentas_financieras(id_cuenta),
+    monto_estimado            numeric(12,2),
+    monto_es_fijo             boolean NOT NULL DEFAULT false,
+    frecuencia                text NOT NULL CHECK (frecuencia IN ('mensual','quincenal','semanal','diaria','anual','custom')),
+    dia_del_periodo           integer,
+    dias_anticipacion_aviso   integer NOT NULL DEFAULT 5,
+    activa                    boolean NOT NULL DEFAULT true,
+    notas                     text,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.obligaciones_instancias (
+    id_instancia              serial PRIMARY KEY,
+    id_obligacion             integer NOT NULL REFERENCES public.obligaciones_recurrentes(id_obligacion) ON DELETE CASCADE,
+    fecha_vencimiento         date NOT NULL,
+    monto_proyectado          numeric(12,2),
+    monto_confirmado          numeric(12,2),
+    estado                    text NOT NULL DEFAULT 'proyectado' CHECK (estado IN (
+        'proyectado','confirmado','vencido','pagado_completo','pagado_parcial','acumulado','cancelado'
+    )),
+    id_movimiento_resultante  integer REFERENCES public.movimientos_caja(id_movimiento),
+    monto_pagado              numeric(12,2),
+    saldo_pendiente           numeric(12,2),
+    nota                      text,
+    archivo_recibo_url        text,
+    confirmada_por            integer REFERENCES public.personas_tienda(id_persona),
+    confirmada_en             timestamptz,
+    pagada_por                integer REFERENCES public.personas_tienda(id_persona),
+    pagada_en                 timestamptz,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (id_obligacion, fecha_vencimiento)
+);
+
+-- fn_confirmar_monto_obligacion(id_instancia, monto, id_persona, archivo_url) → integer
+-- fn_pagar_obligacion(id_instancia, monto, id_cuenta, fecha, id_persona, modo) → integer
+-- fn_generar_obligaciones_pendientes(horizonte_dias) → integer
+-- fn_oblig_actualizar_estado_vencido() → trigger
+-- v_obligaciones_bandeja: bandeja 3 pestañas con grupo (vencidas/estaSemana/proximas)
+
+-- ── 20260420_05_activos_contratos.sql ──────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.activos_fijos (
+    id_activo               serial PRIMARY KEY,
+    codigo                  text NOT NULL UNIQUE,
+    nombre                  text NOT NULL,
+    descripcion             text,
+    categoria               text NOT NULL CHECK (categoria IN (
+        'maquinaria','mobiliario','equipos_computo','vehiculo','mejora_local','otro'
+    )),
+    id_ubicacion            integer REFERENCES public.ubicaciones(id_ubicacion),
+    fecha_adquisicion       date NOT NULL,
+    valor_adquisicion       numeric(12,2) NOT NULL CHECK (valor_adquisicion >= 0),
+    vida_util_meses         integer NOT NULL DEFAULT 60 CHECK (vida_util_meses > 0),
+    valor_residual          numeric(12,2) NOT NULL DEFAULT 0 CHECK (valor_residual >= 0),
+    metodo_depreciacion     text NOT NULL DEFAULT 'lineal' CHECK (metodo_depreciacion IN ('lineal','acelerada')),
+    id_cuenta_activo        integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+    id_cuenta_depreciacion  integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+    estado                  text NOT NULL DEFAULT 'activo' CHECK (estado IN ('activo','vendido','dado_de_baja')),
+    fecha_baja              date,
+    valor_venta             numeric(12,2),
+    archivo_factura_url     text,
+    serie_interna           text,
+    proveedor               text,
+    notas                   text,
+    created_at              timestamptz NOT NULL DEFAULT now(),
+    updated_at              timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.contratos (
+    id_contrato               serial PRIMARY KEY,
+    codigo                    text NOT NULL UNIQUE,
+    nombre                    text NOT NULL,
+    tipo                      text NOT NULL CHECK (tipo IN (
+        'alquiler','servicio','licencia','seguro','comodato','otro'
+    )),
+    id_ubicacion              integer REFERENCES public.ubicaciones(id_ubicacion),
+    contraparte_nombre        text NOT NULL,
+    contraparte_ruc           text,
+    fecha_inicio              date NOT NULL,
+    fecha_fin                 date,
+    monto_periodico           numeric(12,2),
+    moneda                    text NOT NULL DEFAULT 'PEN',
+    frecuencia_pago           text CHECK (frecuencia_pago IN ('mensual','trimestral','semestral','anual','unico')),
+    dia_del_periodo           integer,
+    id_cuenta_gasto           integer REFERENCES public.plan_cuentas(id_cuenta_contable),
+    id_obligacion_recurrente  integer REFERENCES public.obligaciones_recurrentes(id_obligacion),
+    archivo_contrato_url      text,
+    estado                    text NOT NULL DEFAULT 'vigente' CHECK (estado IN ('vigente','por_vencer','vencido','rescindido')),
+    notas                     text,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.depreciacion_mensual (
+    id_depreciacion    serial PRIMARY KEY,
+    id_activo          integer NOT NULL REFERENCES public.activos_fijos(id_activo) ON DELETE CASCADE,
+    anio               integer NOT NULL,
+    mes                integer NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    monto_depreciacion numeric(12,2) NOT NULL,
+    valor_neto_cierre  numeric(12,2) NOT NULL,
+    id_movimiento      integer REFERENCES public.movimientos_caja(id_movimiento),
+    generado_en        timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (id_activo, anio, mes)
+);
+
+-- fn_generar_depreciacion_mensual(anio, mes) → integer
+-- v_activos_con_valor_neto: activos con valor neto calculado
+-- v_depreciacion_mensual_resumen: resumen por (anio, mes)
+
+-- ── 20260420_06_drop_catalogos_auxiliares.sql ──────────────────────────────
+-- DROP TABLE IF EXISTS public.catalogos_auxiliares CASCADE;
+
+-- ── 20260420_07_hardening_auditoria.sql ────────────────────────────────────
+-- 7.1: ventas + idempotency_key text UNIQUE parcial
+-- 7.2: movimientos_caja + idempotency_key text UNIQUE parcial
+-- 7.3: idx_obligaciones_instancias_bandeja (estado, fecha_vencimiento)
+-- 7.4: FKs históricas ON DELETE RESTRICT (ventas, movimientos_caja, movimiento_splits)
+-- 7.5: Verificación plantillas_recurrentes y vistas_guardadas (huérfanas)
