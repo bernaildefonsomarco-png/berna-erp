@@ -37,3 +37,32 @@ export async function verifyPersonaPin(personaRow, enteredPin) {
   }
   return false;
 }
+
+/** Sesión del workspace Gestión (ex Finanzas). Legacy: una release con fallback. */
+const GESTION_SESSION_KEY = 'berna_gestion_session';
+const GESTION_SESSION_LEGACY = 'berna_finanzas_session';
+
+export function getGestionSessionRaw() {
+  if (typeof localStorage === 'undefined') return null;
+  return (
+    localStorage.getItem(GESTION_SESSION_KEY) ||
+    localStorage.getItem(GESTION_SESSION_LEGACY) ||
+    null
+  );
+}
+
+export function setGestionSessionJson(jsonString) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(GESTION_SESSION_KEY, jsonString);
+    localStorage.removeItem(GESTION_SESSION_LEGACY);
+  } catch { /* ignore quota */ }
+}
+
+export function clearGestionSession() {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(GESTION_SESSION_KEY);
+    localStorage.removeItem(GESTION_SESSION_LEGACY);
+  } catch { /* ignore */ }
+}

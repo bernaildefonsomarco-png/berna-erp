@@ -1,11 +1,11 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import App from './App.jsx';
 import './index.css';
 
-const FinanzasGate = lazy(() => import('./views/finanzas/FinanzasGate.jsx'));
-const FinanzasLayout = lazy(() => import('./views/finanzas/FinanzasLayout.jsx'));
+const GestionGate = lazy(() => import('./views/gestion/GestionGate.jsx'));
+const GestionLayout = lazy(() => import('./views/gestion/GestionLayout.jsx'));
 const ComandoGate   = lazy(() => import('./views/comando/ComandoGate.jsx'));
 const ComandoLayout = lazy(() => import('./views/comando/ComandoLayout.jsx'));
 
@@ -18,14 +18,20 @@ const Spinner = () => (
   </div>
 );
 
-function FinanzasRoot() {
+function LegacyFinanzasToGestion() {
+  const loc = useLocation();
+  const to = `${loc.pathname.replace(/^\/finanzas(?=\/|$)/, '/gestion')}${loc.search}${loc.hash}`;
+  return <Navigate to={to} replace />;
+}
+
+function GestionRoot() {
   return (
     <Suspense fallback={<Spinner />}>
-      <FinanzasGate>
+      <GestionGate>
         {({ usuario, logout }) => (
-          <FinanzasLayout usuario={usuario} logout={logout} />
+          <GestionLayout usuario={usuario} logout={logout} />
         )}
-      </FinanzasGate>
+      </GestionGate>
     </Suspense>
   );
 }
@@ -46,7 +52,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/finanzas/*" element={<FinanzasRoot />} />
+        <Route path="/finanzas/*" element={<LegacyFinanzasToGestion />} />
+        <Route path="/gestion/*" element={<GestionRoot />} />
         <Route path="/rapido/*"   element={<Navigate to="/comando" replace />} />
         <Route path="/comando/*"  element={<ComandoRoot />} />
         <Route path="/*"          element={<App />} />

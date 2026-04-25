@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../api/supabase';
 import { jsPDF } from 'jspdf';
 import bwipjs from 'bwip-js';
-import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './finanzas/lib/materialCostos';
+import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './gestion/lib/materialCostos';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const SERIES = {

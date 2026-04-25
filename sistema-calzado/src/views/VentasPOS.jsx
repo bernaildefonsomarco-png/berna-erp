@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-empty */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './finanzas/lib/materialCostos';
+import { listarCostosMaterialesModelo, indexarCostosMateriales, obtenerCostoMaterial } from './gestion/lib/materialCostos';
 import { supabase } from '../api/supabase';
 import jsQR from 'jsqr';
 

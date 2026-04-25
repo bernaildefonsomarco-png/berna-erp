@@ -664,7 +664,7 @@ export default function PlanificadorPedido({ usuario }) {
           <p className="font-bold text-amber-900 mb-1">Enlace con Finanzas</p>
           <p className="text-amber-900/90 leading-snug">
             Antes o después de confirmar el pedido, revisa liquidez y cuentas en{' '}
-            <a href="/finanzas/dashboard" target="_blank" rel="noopener noreferrer" className="underline font-semibold text-amber-950">
+            <a href="/gestion/dashboard" target="_blank" rel="noopener noreferrer" className="underline font-semibold text-amber-950">
               Finanzas → Dashboard
             </a>
             . Cuando junten capital para esta compra, registren una{' '}

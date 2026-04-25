@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../api/supabase';
 import { jsPDF } from 'jspdf';
-import ModalDestinoEfectivo from './finanzas/components/ModalDestinoEfectivo';
+import ModalDestinoEfectivo from './gestion/components/ModalDestinoEfectivo';
 import QuickEntry from '../components/QuickEntry/QuickEntry';
 // ─── Número de WhatsApp del dueño (con código de país, sin + ni espacios) ────
 const WA_NUMERO = '51954839139';

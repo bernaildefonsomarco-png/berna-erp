@@ -30,9 +30,10 @@ Single-page React 19 + Vite app targeting Vercel. All routes rewrite to `index.h
 **1. Root App (`/`)** — PIN-authenticated POS and operations
 - Modules: VentasPOS, ProduccionLotes, Inventario, Caja, CatalogoCostos, PlanificadorPedido
 
-**2. Finanzas (`/finanzas/*`)** — Full financial management suite
-- Entry gate: `FinanzasGate.jsx` (PIN auth, session in `localStorage` key `berna_finanzas_session`)
-- Default landing: `/finanzas/estado-resultados` (Estado de Resultados is the index route)
+**2. Gestión Empresarial (`/gestion/*`)** — Full financial and admin suite (replaces the former Finanzas workspace)
+- Entry gate: `GestionGate.jsx` (PIN auth; session in `localStorage` key `berna_gestion_session`, with one-release fallback for `berna_finanzas_session`)
+- Legacy URLs `/finanzas/*` redirect to `/gestion/*` (same path suffix)
+- Default landing: `/gestion/resumen` (placeholder executive summary; Estado de Resultados remains the main P&L under `/gestion/estado-resultados`)
 - Sub-modules (in sidebar order):
   - `EstadoResultados` — Interactive P&L with BI drill-downs (ventas, costos, personal, materiales). Default period: current week. Supports `?ubicacion=X` URL param to filter by location.
   - `Dashboard` — Flujo de Caja + Patrimonio only (P&L was moved to EstadoResultados)
@@ -43,12 +44,12 @@ Single-page React 19 + Vite app targeting Vercel. All routes rewrite to `index.h
   - `Movimientos` — Cash movements with splits and accounting classification
   - `Transferencias` — Inter-account transfers
   - `PlanCuentas` — Chart of accounts (~50 accounts, source of truth for P&L classification)
-  - `Ubicaciones` — **Hub Empresarial**: list of Tiendas & Talleres with live mini-KPIs (ventas, costos, personal del mes). Each card links to `/finanzas/ubicaciones/:id`
+  - `Ubicaciones` — **Hub Empresarial**: list of Tiendas & Talleres with live mini-KPIs (ventas, costos, personal del mes). Each card links to `/gestion/ubicaciones/:id`
   - `HubUbicacion` — Hub detail per location: KPI strip + 5 tabs (Resumen/P&L, Ventas, Costos, Equipo, Movimientos). Ventas tab only shown for `rol='Tienda'`.
   - `Equipo` — Admin users management (adminOnly)
-  - `CierresPeriodo` — Historial de cierres contables + wizard 3 pasos (checklist → PDF preview → PIN) + modal de reapertura con motivo obligatorio. Route: `/finanzas/cierres` y `/finanzas/cierres/:year/:month`
-- API clients: `src/views/finanzas/api/dashboardClient.js`, `finanzasClient.js`, `cierresClient.js`
-- Design tokens: `src/views/finanzas/lib/designSystem.js` (palette: `#1c1917`, `#fafaf9`, `#57534e`, `#a8a29e`)
+  - `CierresPeriodo` — Historial de cierres contables + wizard 3 pasos (checklist → PDF preview → PIN) + modal de reapertura con motivo obligatorio. Route: `/gestion/cierres` y `/gestion/cierres/:year/:month`
+- API clients: `src/views/gestion/api/dashboardClient.js`, `finanzasClient.js`, `cierresClient.js`
+- Design tokens: `src/views/gestion/lib/designSystem.js` (palette: `#1c1917`, `#fafaf9`, `#57534e`, `#a8a29e`)
 - EstadoResultados uses its own CSS-variable theme (ER_STYLES inline) — slate/indigo/emerald/rose, NOT the standard design tokens
 
 **3. Modo Rápido (`/rapido/*`)** — Simplified high-contrast interface for parents/admins
@@ -60,7 +61,7 @@ Single-page React 19 + Vite app targeting Vercel. All routes rewrite to `index.h
 
 ### Permission System
 
-Table-driven RBAC via `permisos_persona`. Permission helpers in `src/views/finanzas/lib/permisos.js`:
+Table-driven RBAC via `permisos_persona`. Permission helpers in `src/views/gestion/lib/permisos.js`:
 - `tienePermiso(usuario, recurso, nivelMinimo)`
 - Niveles (hierarchical): `ninguno(0) < ver(1) < registrar(2) < editar(3) < admin(4)`
 - Recursos: `finanzas`, `cuentas`, `deudas`, `costos_fijos`, `movimientos`, `transferencias`, `configuracion`, `caja`, `rapido`, `cierres`
@@ -98,7 +99,7 @@ Table-driven RBAC via `permisos_persona`. Permission helpers in `src/views/finan
 - Storage bucket `cierres-mensuales` is **private** — download via `supabase.storage.createSignedUrl()` (1h expiry).
 - PDF generation uses `@react-pdf/renderer` loaded **lazily** (not in main bundle).
 - Hash chain: v2+ PDFs incorporate hash of v1, enabling integrity check via `v_cierres_integridad`.
-- BannerCierrePendiente: shown globally in FinanzasLayout to admins when past months are still open.
+- BannerCierrePendiente: shown globally in GestionLayout to admins when past months are still open.
 
 ### Naming Conventions
 
@@ -107,7 +108,7 @@ Table-driven RBAC via `permisos_persona`. Permission helpers in `src/views/finan
 
 ### Charting
 
-Uses **Recharts** (not Tremor — incompatible with Tailwind v4). Charts live in `src/views/finanzas/components/charts/`.
+Uses **Recharts** (not Tremor — incompatible with Tailwind v4). Charts live in `src/views/gestion/components/charts/`.
 
 ### Documentation
 
