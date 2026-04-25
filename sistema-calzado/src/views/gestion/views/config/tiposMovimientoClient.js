@@ -49,6 +49,59 @@ export async function listMapeosResumen() {
   return data || [];
 }
 
+export async function getTipoById(id_tipo) {
+  const { data, error } = await supabase.from('tipos_movimiento_caja').select('*').eq('id_tipo', id_tipo).single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Actualiza un tipo existente. Si cambia `id_cuenta_contable_default`, actualiza
+ * todas las filas de `mapeo_tipo_cuenta` de ese tipo a la misma cuenta.
+ */
+export async function updateTipoMovimiento(id_tipo, form) {
+  const { data: cur, error: e0 } = await supabase.from('tipos_movimiento_caja').select('*').eq('id_tipo', id_tipo).single();
+  if (e0) throw e0;
+
+  const idCuentaNueva = form.id_cuenta_contable_default;
+  const cuentaCambio =
+    idCuentaNueva != null && idCuentaNueva !== cur.id_cuenta_contable_default;
+
+  const updateRow = {
+    codigo: form.codigo,
+    nombre: form.nombre,
+    emoji: form.emoji,
+    categoria: form.categoria,
+    tipo_flujo: form.tipo_flujo,
+    direccion: form.direccion,
+    requiere_nota: form.requiere_nota,
+    activo: form.activo,
+    orden: form.orden,
+    id_cuenta_contable_default: idCuentaNueva,
+    scope: form.scope,
+    solo_admin: form.solo_admin,
+  };
+  if (form.naturaleza !== undefined) updateRow.naturaleza = form.naturaleza;
+
+  const { data: tipo, error: e1 } = await supabase
+    .from('tipos_movimiento_caja')
+    .update(updateRow)
+    .eq('id_tipo', id_tipo)
+    .select()
+    .single();
+  if (e1) throw e1;
+
+  if (cuentaCambio) {
+    const { error: e2 } = await supabase
+      .from('mapeo_tipo_cuenta')
+      .update({ id_cuenta_contable: idCuentaNueva })
+      .eq('id_tipo', id_tipo);
+    if (e2) throw e2;
+  }
+
+  return tipo;
+}
+
 /**
  * Crea tipo + mapeos según ámbito. Mapea macro → dirección + tipo_flujo reales.
  */
@@ -95,7 +148,7 @@ export async function crearTipoMovimientoWizard(datos) {
   return tipo;
 }
 
-function macroAFlujo(macro) {
+export function macroAFlujo(macro) {
   if (macro === 'ingreso') {
     return { direccion: 'entrada', tipo_flujo: 'ingreso' };
   }

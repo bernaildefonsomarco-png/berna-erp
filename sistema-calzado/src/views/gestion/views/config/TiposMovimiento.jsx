@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { Spinner } from '../../components/UI';
 import { listTiposMovimiento, listMapeosResumen } from './tiposMovimientoClient';
 import WizardCrearTipo from './WizardCrearTipo/WizardCrearTipo';
+import EditarTipoModal from './EditarTipoModal';
 
 export default function TiposMovimiento() {
   const [tipos, setTipos] = useState([]);
   const [mapeos, setMapeos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editarId, setEditarId] = useState(null);
   const [err, setErr] = useState('');
 
   const cargar = useCallback(async () => {
@@ -68,6 +70,7 @@ export default function TiposMovimiento() {
                   <th className="p-2">Categoría</th>
                   <th className="p-2">Dirección</th>
                   <th className="p-2">Activo</th>
+                  <th className="p-2 w-24" />
                 </tr>
               </thead>
               <tbody>
@@ -79,6 +82,15 @@ export default function TiposMovimiento() {
                     <td className="p-2 text-stone-600">{t.categoria}</td>
                     <td className="p-2 text-xs text-stone-500">{t.direccion || '—'}</td>
                     <td className="p-2">{t.activo ? 'Sí' : 'No'}</td>
+                    <td className="p-2">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-indigo-600 hover:underline"
+                        onClick={() => setEditarId(t.id_tipo)}
+                      >
+                        Editar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -129,6 +141,15 @@ export default function TiposMovimiento() {
             setWizardOpen(false);
             cargar();
           }}
+        />
+      )}
+
+      {editarId != null && (
+        <EditarTipoModal
+          key={editarId}
+          idTipo={editarId}
+          onClose={() => setEditarId(null)}
+          onGuardado={cargar}
         />
       )}
     </div>
