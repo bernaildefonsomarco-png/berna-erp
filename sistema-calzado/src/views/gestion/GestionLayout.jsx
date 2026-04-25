@@ -24,6 +24,7 @@ const CierresPeriodo = lazy(() => import('./views/CierresPeriodo'));
 const CierreWizard = lazy(() => import('./views/cierres/CierreWizard'));
 const CatalogoAdmin = lazy(() => import('./views/admin/CatalogoAdmin'));
 const EstructuraFinanciera = lazy(() => import('./views/EstructuraFinanciera'));
+const TiposMovimiento = lazy(() => import('./views/config/TiposMovimiento'));
 
 /* ──────────────────────────────────────────────────────────────────────────
    GestionLayout — workspace “Gestión Empresarial” (antes Finanzas)
@@ -195,7 +196,7 @@ export default function GestionLayout({ usuario, logout }) {
                   <Route path="contratos" element={<PlaceholderModuloFase2 titulo="Contratos" descripcion="En preparación (plan Fase 2.09)." />} />
                   <Route path="depreciacion" element={<PlaceholderModuloFase2 titulo="Depreciación" descripcion="En preparación (plan Fase 2.09)." />} />
                   <Route path="config/empresa" element={<PlaceholderModuloFase2 titulo="Empresa" descripcion="Ajustes de empresa en preparación. Usuarios y permisos en Equipo." enlaceTo="/gestion/equipo" enlaceLabel="Equipo" />} />
-                  <Route path="config/tipos-movimiento" element={<Navigate to="/gestion/catalogo?tab=tipos" replace />} />
+                  <Route path="config/tipos-movimiento" element={<TiposMovimiento />} />
                   <Route path="config/mapeos" element={<Navigate to="/gestion/catalogo?tab=mapeo" replace />} />
                   <Route path="config/catalogos" element={<Navigate to="/gestion/catalogo" replace />} />
                   <Route path="config/permisos" element={<Navigate to="/gestion/equipo" replace />} />
